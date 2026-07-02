@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}醋风味监测系统{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <header class="header">
+        <div class="container header-content">
+            <div class="logo">
+                <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                    <circle cx="16" cy="16" r="14" stroke="#E74C3C" stroke-width="2"/>
+                    <path d="M10 16C10 12 12.5 8 16 8C19.5 8 22 12 22 16" stroke="#E74C3C" stroke-width="2" stroke-linecap="round"/>
+                    <path d="M8 20H24" stroke="#E74C3C" stroke-width="2" stroke-linecap="round"/>
+                    <circle cx="16" cy="24" r="2" fill="#E74C3C"/>
+                </svg>
+                <span>醋风味监测系统</span>
+            </div>
+            <nav class="nav">
+                <a href="{{ url_for('index') }}" class="nav-link {% if request.path == '/' %}active{% endif %}">首页</a>
+                <a href="{{ url_for('aging') }}" class="nav-link {% if request.path == '/aging' %}active{% endif %}">陈酿</a>
+                <a href="{{ url_for('aaf') }}" class="nav-link {% if request.path == '/aaf' %}active{% endif %}">AAF</a>
+                <a href="{{ url_for('about') }}" class="nav-link {% if request.path == '/about' %}active{% endif %}">关于</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="main">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2024 醋风味监测系统 - 基于科学模型的专业分析工具</p>
+        </div>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

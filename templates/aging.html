@@ -1,0 +1,243 @@
+{% extends "base.html" %}
+
+{% block title %}陈酿预测 - 醋风味监测系统{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="page-header">
+        <h1>陈酿时间预测</h1>
+        <p class="subtitle">基于动力学模型预测醋的风味演化</p>
+    </div>
+
+    <div class="dashboard">
+        <div class="card params-card">
+            <h2>预测参数</h2>
+            
+            <div class="param-section">
+                <h3>时间范围</h3>
+                <div class="param-row">
+                    <label for="current_months">当前醋龄 (月)</label>
+                    <input type="range" id="current_months" min="0" max="100" value="36">
+                    <span class="param-value" id="current_months_value">36</span>
+                </div>
+                <div class="param-row">
+                    <label for="target_months">目标醋龄 (月)</label>
+                    <input type="range" id="target_months" min="0" max="120" value="60">
+                    <span class="param-value" id="target_months_value">60</span>
+                </div>
+            </div>
+
+            <div class="param-section">
+                <h3>工艺条件</h3>
+                <div class="select-row">
+                    <label for="aging_process">发酵类型</label>
+                    <select id="aging_process">
+                        <option value="固态发酵">固态发酵</option>
+                        <option value="液态发酵">液态发酵</option>
+                        <option value="固液复合">固液复合</option>
+                    </select>
+                </div>
+                <div class="select-row">
+                    <label for="aging_material">原料</label>
+                    <select id="aging_material">
+                        <option value="糯米">糯米</option>
+                        <option value="大米">大米</option>
+                        <option value="高粱">高粱</option>
+                        <option value="麦芽">麦芽</option>
+                        <option value="果蔬">果蔬</option>
+                    </select>
+                </div>
+                <div class="select-row">
+                    <label for="aging_style">工艺风格</label>
+                    <select id="aging_style">
+                        <option value="传统">传统</option>
+                        <option value="现代">现代</option>
+                    </select>
+                </div>
+            </div>
+
+            <button class="btn-primary" onclick="predictAging()">预测陈酿</button>
+        </div>
+
+        <div class="card results-card">
+            <div class="result-section">
+                <h2>参数演化曲线</h2>
+                <div class="chart-container">
+                    <canvas id="trajectoryChart"></canvas>
+                </div>
+            </div>
+
+            <div class="result-section">
+                <h2>预测状态 (<span id="targetLabel">60</span>月)</h2>
+                <div class="prediction-grid" id="predictionResult">
+                    <div class="pred-item">
+                        <span class="pred-label">总酸</span>
+                        <span class="pred-value" id="pred_total_acid">--</span>
+                    </div>
+                    <div class="pred-item">
+                        <span class="pred-label">不挥发酸</span>
+                        <span class="pred-value" id="pred_non_volatile_acid">--</span>
+                    </div>
+                    <div class="pred-item">
+                        <span class="pred-label">还原糖</span>
+                        <span class="pred-value" id="pred_reducing_sugar">--</span>
+                    </div>
+                    <div class="pred-item">
+                        <span class="pred-label">总氨基酸</span>
+                        <span class="pred-value" id="pred_total_amino_acid">--</span>
+                    </div>
+                    <div class="pred-item">
+                        <span class="pred-label">乙酸乙酯</span>
+                        <span class="pred-value" id="pred_ethyl_acetate">--</span>
+                    </div>
+                    <div class="pred-item">
+                        <span class="pred-label">四甲基吡嗪</span>
+                        <span class="pred-value" id="pred_tmp">--</span>
+                    </div>
+                    <div class="pred-item">
+                        <span class="pred-label">乙酸</span>
+                        <span class="pred-value" id="pred_acetic_acid">--</span>
+                    </div>
+                    <div class="pred-item">
+                        <span class="pred-label">pH</span>
+                        <span class="pred-value" id="pred_ph">--</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="result-section">
+                <h2>综合评分预测</h2>
+                <div class="overall-score">
+                    <div class="score-circle">
+                        <span id="pred_overall">--</span>
+                        <span class="score-unit">分</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let trajectoryChart = null;
+
+document.querySelectorAll('input[type="range"]').forEach(input => {
+    input.addEventListener('input', function() {
+        const valueSpan = document.getElementById(this.id + '_value');
+        if (valueSpan) {
+            valueSpan.textContent = this.value;
+        }
+    });
+});
+
+function getAgingParams() {
+    return {
+        process: document.getElementById('aging_process').value,
+        raw_material: document.getElementById('aging_material').value,
+        craft_style: document.getElementById('aging_style').value,
+    };
+}
+
+function predictAging() {
+    const current = document.getElementById('current_months').value;
+    const target = document.getElementById('target_months').value;
+    const params = getAgingParams();
+    
+    document.getElementById('targetLabel').textContent = target;
+    
+    fetch('/api/trajectory?' + new URLSearchParams(params))
+        .then(response => response.json())
+        .then(data => {
+            updateTrajectoryChart(data);
+        })
+        .catch(error => console.error('Error:', error));
+    
+    fetch('/api/aging?months=' + target + '&' + new URLSearchParams(params))
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('pred_total_acid').textContent = data.state.total_acid + ' g/100mL';
+            document.getElementById('pred_non_volatile_acid').textContent = data.state.non_volatile_acid + ' g/100mL';
+            document.getElementById('pred_reducing_sugar').textContent = data.state.reducing_sugar + ' g/100mL';
+            document.getElementById('pred_total_amino_acid').textContent = data.state.total_amino_acid + ' g/100mL';
+            document.getElementById('pred_ethyl_acetate').textContent = data.state.ethyl_acetate + ' μg/mL';
+            document.getElementById('pred_tmp').textContent = data.state.tmp + ' μg/mL';
+            document.getElementById('pred_acetic_acid').textContent = data.state.acetic_acid + ' g/100mL';
+            document.getElementById('pred_ph').textContent = data.state.ph;
+            document.getElementById('pred_overall').textContent = data.overall.toFixed(1);
+        })
+        .catch(error => console.error('Error:', error));
+}
+
+function updateTrajectoryChart(data) {
+    const months = data.months;
+    const params = data.parameters;
+    
+    const datasets = [
+        { label: '总酸 (g/100mL)', data: params.total_acid, color: '#E74C3C' },
+        { label: '不挥发酸 (g/100mL)', data: params.non_volatile_acid, color: '#27AE60' },
+        { label: '乙酸 (g/100mL)', data: params.acetic_acid, color: '#3498DB' },
+        { label: '乙酸乙酯 (×100 μg/mL)', data: params.ethyl_acetate.map(v => v / 100), color: '#9B59B6' },
+        { label: '四甲基吡嗪 (μg/mL)', data: params.tmp, color: '#F39C12' },
+        { label: 'pH (×10)', data: params.ph.map(v => v * 10), color: '#1ABC9C' },
+    ];
+    
+    if (trajectoryChart) {
+        trajectoryChart.destroy();
+    }
+    
+    const ctx = document.getElementById('trajectoryChart').getContext('2d');
+    trajectoryChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: months,
+            datasets: datasets.map(ds => ({
+                label: ds.label,
+                data: ds.data,
+                borderColor: ds.color,
+                backgroundColor: 'transparent',
+                tension: 0.4,
+                pointRadius: 4,
+                pointHoverRadius: 6,
+            }))
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            interaction: {
+                mode: 'index',
+                intersect: false,
+            },
+            scales: {
+                x: {
+                    title: { display: true, text: '醋龄 (月)', font: { size: 12 } },
+                    ticks: { font: { size: 10 } }
+                },
+                y: {
+                    title: { display: true, text: '参数值', font: { size: 12 } },
+                    ticks: { font: { size: 10 } }
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { font: { size: 10 }, boxWidth: 12 }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': ' + context.parsed.y.toFixed(2);
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+window.addEventListener('DOMContentLoaded', function() {
+    predictAging();
+});
+</script>
+{% endblock %}

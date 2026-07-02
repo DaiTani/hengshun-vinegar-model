@@ -1,0 +1,271 @@
+{% extends "base.html" %}
+
+{% block title %}首页 - 醋风味监测系统{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="page-header">
+        <h1>风味实时监测</h1>
+        <p class="subtitle">基于多维度理化指标的醋风味分析</p>
+    </div>
+
+    <div class="dashboard">
+        <div class="card params-card">
+            <h2>参数输入</h2>
+            
+            <div class="param-section">
+                <h3>醋龄与酸度</h3>
+                <div class="param-row">
+                    <label for="vinegar_age_months">醋龄 (月)</label>
+                    <input type="range" id="vinegar_age_months" min="0" max="120" value="60">
+                    <span class="param-value" id="vinegar_age_value">60</span>
+                </div>
+                <div class="param-row">
+                    <label for="total_acid">总酸 (g/100mL)</label>
+                    <input type="range" id="total_acid" min="3" max="10" step="0.1" value="6.32">
+                    <span class="param-value" id="total_acid_value">6.32</span>
+                </div>
+                <div class="param-row">
+                    <label for="non_volatile_acid">不挥发酸 (g/100mL)</label>
+                    <input type="range" id="non_volatile_acid" min="0.5" max="3.5" step="0.1" value="1.85">
+                    <span class="param-value" id="non_volatile_acid_value">1.85</span>
+                </div>
+                <div class="param-row">
+                    <label for="acetic_acid">乙酸 (g/100mL)</label>
+                    <input type="range" id="acetic_acid" min="0.5" max="8" step="0.1" value="2.31">
+                    <span class="param-value" id="acetic_acid_value">2.31</span>
+                </div>
+            </div>
+
+            <div class="param-section">
+                <h3>糖与氨基酸</h3>
+                <div class="param-row">
+                    <label for="reducing_sugar">还原糖 (g/100mL)</label>
+                    <input type="range" id="reducing_sugar" min="0.5" max="5" step="0.1" value="0.93">
+                    <span class="param-value" id="reducing_sugar_value">0.93</span>
+                </div>
+                <div class="param-row">
+                    <label for="total_amino_acid">总氨基酸 (g/100mL)</label>
+                    <input type="range" id="total_amino_acid" min="0.1" max="10" step="0.1" value="4.0">
+                    <span class="param-value" id="total_amino_acid_value">4.0</span>
+                </div>
+            </div>
+
+            <div class="param-section">
+                <h3>香气成分</h3>
+                <div class="param-row">
+                    <label for="ethyl_acetate">乙酸乙酯 (μg/mL)</label>
+                    <input type="range" id="ethyl_acetate" min="100" max="5000" step="50" value="1500">
+                    <span class="param-value" id="ethyl_acetate_value">1500</span>
+                </div>
+                <div class="param-row">
+                    <label for="tmp">四甲基吡嗪 (μg/mL)</label>
+                    <input type="range" id="tmp" min="5" max="200" step="1" value="44">
+                    <span class="param-value" id="tmp_value">44</span>
+                </div>
+                <div class="param-row">
+                    <label for="ph">pH值</label>
+                    <input type="range" id="ph" min="2" max="5.5" step="0.1" value="3.65">
+                    <span class="param-value" id="ph_value">3.65</span>
+                </div>
+            </div>
+
+            <div class="param-section">
+                <h3>工艺选择</h3>
+                <div class="select-row">
+                    <label for="process">发酵类型</label>
+                    <select id="process">
+                        <option value="固态发酵">固态发酵</option>
+                        <option value="液态发酵">液态发酵</option>
+                        <option value="固液复合">固液复合</option>
+                    </select>
+                </div>
+                <div class="select-row">
+                    <label for="raw_material">原料</label>
+                    <select id="raw_material">
+                        <option value="糯米">糯米</option>
+                        <option value="大米">大米</option>
+                        <option value="高粱">高粱</option>
+                        <option value="麦芽">麦芽</option>
+                        <option value="果蔬">果蔬</option>
+                    </select>
+                </div>
+                <div class="select-row">
+                    <label for="craft_style">工艺风格</label>
+                    <select id="craft_style">
+                        <option value="传统">传统</option>
+                        <option value="现代">现代</option>
+                    </select>
+                </div>
+            </div>
+
+            <button class="btn-primary" onclick="analyzeFlavor()">立即分析</button>
+        </div>
+
+        <div class="card results-card">
+            <div class="result-section">
+                <h2>风味雷达图</h2>
+                <div class="chart-container">
+                    <canvas id="radarChart"></canvas>
+                </div>
+            </div>
+
+            <div class="result-section">
+                <h2>感官评分</h2>
+                <div class="chart-container horizontal-bars">
+                    <canvas id="sensoryChart"></canvas>
+                </div>
+            </div>
+
+            <div class="result-section">
+                <h2>综合评分</h2>
+                <div class="overall-score">
+                    <div class="score-circle">
+                        <span id="overallScore">--</span>
+                        <span class="score-unit">分</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let radarChart = null;
+let sensoryChart = null;
+
+document.querySelectorAll('input[type="range"]').forEach(input => {
+    input.addEventListener('input', function() {
+        const valueSpan = document.getElementById(this.id + '_value');
+        if (valueSpan) {
+            valueSpan.textContent = this.value;
+        }
+    });
+});
+
+function getParams() {
+    return {
+        vinegar_age_months: document.getElementById('vinegar_age_months').value,
+        total_acid: document.getElementById('total_acid').value,
+        non_volatile_acid: document.getElementById('non_volatile_acid').value,
+        reducing_sugar: document.getElementById('reducing_sugar').value,
+        total_amino_acid: document.getElementById('total_amino_acid').value,
+        ethyl_acetate: document.getElementById('ethyl_acetate').value,
+        tmp: document.getElementById('tmp').value,
+        acetic_acid: document.getElementById('acetic_acid').value,
+        ph: document.getElementById('ph').value,
+        process: document.getElementById('process').value,
+        raw_material: document.getElementById('raw_material').value,
+        craft_style: document.getElementById('craft_style').value,
+    };
+}
+
+function analyzeFlavor() {
+    const params = getParams();
+    
+    fetch('/api/flavor?' + new URLSearchParams(params))
+        .then(response => response.json())
+        .then(data => {
+            updateRadarChart(data.flavor);
+            updateSensoryChart(data.sensory);
+            document.getElementById('overallScore').textContent = data.overall.toFixed(1);
+        })
+        .catch(error => console.error('Error:', error));
+}
+
+function updateRadarChart(flavor) {
+    const labels = Object.keys(flavor);
+    const values = Object.values(flavor);
+    
+    if (radarChart) {
+        radarChart.data.labels = labels;
+        radarChart.data.datasets[0].data = values;
+        radarChart.update();
+    } else {
+        const ctx = document.getElementById('radarChart').getContext('2d');
+        radarChart = new Chart(ctx, {
+            type: 'radar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: '风味得分',
+                    data: values,
+                    backgroundColor: 'rgba(231, 76, 60, 0.2)',
+                    borderColor: '#E74C3C',
+                    borderWidth: 2,
+                    pointBackgroundColor: '#E74C3C',
+                    pointBorderColor: '#fff',
+                    pointRadius: 4,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                scales: {
+                    r: {
+                        beginAtZero: true,
+                        max: 10,
+                        ticks: {
+                            stepSize: 2,
+                            font: { size: 11 }
+                        }
+                    }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+    }
+}
+
+function updateSensoryChart(sensory) {
+    const labels = Object.keys(sensory);
+    const values = Object.values(sensory);
+    
+    if (sensoryChart) {
+        sensoryChart.data.labels = labels;
+        sensoryChart.data.datasets[0].data = values;
+        sensoryChart.update();
+    } else {
+        const ctx = document.getElementById('sensoryChart').getContext('2d');
+        sensoryChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: '评分',
+                    data: values,
+                    backgroundColor: '#27AE60',
+                    borderRadius: 4,
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: true,
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        max: 25,
+                        ticks: { font: { size: 10 } }
+                    },
+                    y: {
+                        ticks: { font: { size: 10 } }
+                    }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+    }
+}
+
+window.addEventListener('DOMContentLoaded', function() {
+    analyzeFlavor();
+});
+</script>
+{% endblock %}

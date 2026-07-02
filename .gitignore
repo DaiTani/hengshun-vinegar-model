@@ -1,0 +1,44 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+*.egg-info/
+dist/
+build/
+
+# Logs
+*.log
+*.log.*
+
+# Test artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Large data files (keep only summaries)
+pdf-ocr/paper/*.pdf
+pdf-ocr/paper/*.caj
+pdf-ocr/chroma_db/
+pdf-ocr/__pycache__/
+
+# Temporary debug scripts (not for release)
+_check_*.py
+_validate_*.py
+_investigate_*.py
+_refit*.py
+_r2*.log
+_pytest*.log
+_demo.log
+_temp_api.log

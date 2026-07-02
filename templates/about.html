@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block title %}关于 - 醋风味监测系统{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="page-header">
+        <h1>关于系统</h1>
+        <p class="subtitle">醋风味监测分析平台技术说明</p>
+    </div>
+
+    <div class="about-content">
+        <div class="card">
+            <h2>系统概述</h2>
+            <p>醋风味监测系统是一个基于多维度理化指标的专业分析平台，集成了风味雷达模型、陈酿动力学模型和AAF发酵动力学模型，为醋类产品提供全面的风味分析服务。</p>
+            
+            <div class="info-grid">
+                <div class="info-item">
+                    <h3>风味雷达模型</h3>
+                    <p>基于6维风味特征（酸感、甜感、鲜感、醇厚、花果香、焦糖香）的实时映射分析</p>
+                    <ul>
+                        <li>支持9个核心理化指标输入</li>
+                        <li>14维感官评分体系</li>
+                        <li>综合评分0-100</li>
+                    </ul>
+                </div>
+                
+                <div class="info-item">
+                    <h3>陈酿动力学模型</h3>
+                    <p>基于Logistic曲线拟合的陈酿时间预测模型</p>
+                    <ul>
+                        <li>预测范围：0-120个月</li>
+                        <li>8个参数演化曲线</li>
+                        <li>支持多种工艺/原料组合</li>
+                    </ul>
+                </div>
+                
+                <div class="info-item">
+                    <h3>AAF发酵模型</h3>
+                    <p>基于Luedeking-Piret动力学的醋酸发酵过程模拟</p>
+                    <ul>
+                        <li>18天发酵周期</li>
+                        <li>实时翻醅建议</li>
+                        <li>基于李晓伟(2022)参数</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>技术参数</h2>
+            
+            <h3>风味雷达参数</h3>
+            <table class="param-table">
+                <thead>
+                    <tr>
+                        <th>参数</th>
+                        <th>范围</th>
+                        <th>单位</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>醋龄</td><td>0 - 120</td><td>月</td></tr>
+                    <tr><td>总酸</td><td>3.0 - 10.0</td><td>g/100mL</td></tr>
+                    <tr><td>不挥发酸</td><td>0.5 - 3.5</td><td>g/100mL</td></tr>
+                    <tr><td>还原糖</td><td>0.5 - 5.0</td><td>g/100mL</td></tr>
+                    <tr><td>总氨基酸</td><td>0.1 - 10.0</td><td>g/100mL</td></tr>
+                    <tr><td>乙酸乙酯</td><td>100 - 5000</td><td>μg/mL</td></tr>
+                    <tr><td>四甲基吡嗪</td><td>5 - 200</td><td>μg/mL</td></tr>
+                    <tr><td>乙酸</td><td>0.5 - 8.0</td><td>g/100mL</td></tr>
+                    <tr><td>pH</td><td>2.0 - 5.5</td><td>-</td></tr>
+                </tbody>
+            </table>
+
+            <h3>工艺类型</h3>
+            <table class="param-table">
+                <thead>
+                    <tr>
+                        <th>发酵类型</th>
+                        <th>原料</th>
+                        <th>工艺风格</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>固态发酵</td><td>糯米</td><td>传统</td></tr>
+                    <tr><td>液态发酵</td><td>大米</td><td>现代</td></tr>
+                    <tr><td>固液复合</td><td>高粱</td><td></td></tr>
+                    <tr><td></td><td>麦芽</td><td></td></tr>
+                    <tr><td></td><td>果蔬</td><td></td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="card">
+            <h2>文献参考</h2>
+            <div class="references">
+                <div class="ref-item">
+                    <strong>任晓荣 (2023)</strong>
+                    <p>镇江香醋陈酿过程中理化指标变化研究 - ZV3/ZV5/ZV8节点实测数据</p>
+                </div>
+                <div class="ref-item">
+                    <strong>郑梦林 (2021)</strong>
+                    <p>0-8年陈镇江香醋7种有机酸及4种核苷酸分析</p>
+                </div>
+                <div class="ref-item">
+                    <strong>李晓伟 (2022)</strong>
+                    <p>食醋固态发酵罐条件优化及发酵动力学分析 - Luedeking-Piret模型参数</p>
+                </div>
+                <div class="ref-item">
+                    <strong>王超 (2020)</strong>
+                    <p>镇江香醋醋酸发酵过程中理化指标的动态分析研究</p>
+                </div>
+                <div class="ref-item">
+                    <strong>简东振 (2020)</strong>
+                    <p>陈酿香气/风味成分变化 - GC-O香气贡献度分析</p>
+                </div>
+                <div class="ref-item">
+                    <strong>沈广玥 (2023)</strong>
+                    <p>XGBoost工艺/原料判别特征重要性分析</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>API接口</h2>
+            <div class="api-list">
+                <div class="api-item">
+                    <code>GET /api/flavor</code>
+                    <p>风味分析 - 返回6维风味雷达、14维感官评分和综合评分</p>
+                </div>
+                <div class="api-item">
+                    <code>GET /api/aging?months=60</code>
+                    <p>陈酿预测 - 返回指定月龄的醋状态和评分</p>
+                </div>
+                <div class="api-item">
+                    <code>GET /api/aaf?day=8</code>
+                    <p>AAF发酵状态 - 返回指定天数的发酵状态和翻醅建议</p>
+                </div>
+                <div class="api-item">
+                    <code>GET /api/trajectory</code>
+                    <p>陈酿轨迹 - 返回0-120月完整演化曲线数据</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,10 @@
+Rank,Parameter,MeanAbsImpact,RangeSensitivity,ImpactDirection
+1,ethyl_acetate,4.026211,0.002814,↑+
+2,ph,2.741699,2.714286,↓-
+3,vinegar_age_months,1.655879,0.0585,↓-
+4,acetic_acid,1.317148,0.472,↓-
+5,total_amino_acid,1.018789,0.379798,↑+
+6,tmp,0.906641,0.011333,↑+
+7,total_acid,0.756035,0.43,↓-
+8,non_volatile_acid,0.631016,1.296667,↓-
+9,reducing_sugar,0.381348,0.382222,↓-
