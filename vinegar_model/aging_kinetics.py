@@ -234,8 +234,8 @@ def predict_at_age(state: VinegarState, target_months: float) -> VinegarState:
 
 def age_from_composition(
     total_acid_g100mL: float,
-    ethyl_acetate_mgL: float,
-    tmp_mgL: float,
+    ethyl_acetate_ugmL: float,
+    tmp_ugmL: float,
     acetic_acid_g100mL: float,
     months: float,
     process: str = "固态发酵",
@@ -247,8 +247,8 @@ def age_from_composition(
 
     参数:
         total_acid_g100mL: 淋醋后总酸浓度 (g/100mL)
-        ethyl_acetate_mgL: 淋醋后乙酸乙酯浓度 (mg/L)
-        tmp_mgL: 淋醋后四甲基吡嗪浓度 (mg/L)
+        ethyl_acetate_ugmL: 淋醋后乙酸乙酯浓度 (μg/mL = mg/L)
+        tmp_ugmL: 淋醋后四甲基吡嗪浓度 (μg/mL = mg/L)
         acetic_acid_g100mL: 淋醋后乙酸浓度 (g/100mL)
         months: 陈酿月数
         process: 发酵类型
@@ -266,8 +266,8 @@ def age_from_composition(
 
     # 计算实际起点与基准的比例
     scale_total_acid = total_acid_g100mL / ref_0.total_acid if ref_0.total_acid > 0 else 1.0
-    scale_ethyl = ethyl_acetate_mgL / ref_0.ethyl_acetate if ref_0.ethyl_acetate > 0 else 1.0
-    scale_tmp = tmp_mgL / ref_0.tmp if ref_0.tmp > 0 else 1.0
+    scale_ethyl = ethyl_acetate_ugmL / ref_0.ethyl_acetate if ref_0.ethyl_acetate > 0 else 1.0
+    scale_tmp = tmp_ugmL / ref_0.tmp if ref_0.tmp > 0 else 1.0
     scale_acetic = acetic_acid_g100mL / ref_0.acetic_acid if ref_0.acetic_acid > 0 else 1.0
 
     # 使用比例因子缩放陈酿曲线

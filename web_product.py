@@ -11,7 +11,8 @@ from vinegar_model.flavor_radar import (
 from vinegar_model.aging_kinetics import age_to_state, predict_trajectory
 from vinegar_model.process_model import (
     recommend_turning, VinegarProductionModel,
-    MaterialBasedModel, ProductionInput, calculate_from_raw_material
+    MaterialBasedModel, ProductionInput, calculate_from_raw_material,
+    AGING_VESSEL_FACTORS, AGING_TEMPERATURE_FACTORS
 )
 from vinegar_model.aaf_kinetics import AAFModel
 
@@ -90,12 +91,25 @@ def api_aging():
     process = request.args.get('process', '固态发酵')
     raw_material = request.args.get('raw_material', '糯米')
     craft_style = request.args.get('craft_style', '传统')
-    
+    aging_vessel = request.args.get('aging_vessel', '陶缸')
+    aging_temperature = request.args.get('aging_temperature', '常温')
+
+    # 陈酿容器和温度效应系数
+    vessel_factors = AGING_VESSEL_FACTORS.get(aging_vessel, AGING_VESSEL_FACTORS['陶缸'])
+    temp_factors = AGING_TEMPERATURE_FACTORS.get(aging_temperature, AGING_TEMPERATURE_FACTORS['常温'])
+    ethyl_factor = vessel_factors["ethyl_acetate_rate"] * temp_factors["ethyl_acetate_rate"]
+    tmp_factor = vessel_factors["tmp_rate"] * temp_factors["tmp_rate"]
+
     state = age_to_state(months, process, raw_material, craft_style)
+
+    # 应用容器和温度效应到风味物质
+    state.ethyl_acetate *= ethyl_factor
+    state.tmp *= tmp_factor
+
     profile = compute_flavor_profile(state)
     sensory = compute_sensory_score(state)
     overall = compute_overall_score(state, profile, sensory)
-    
+
     return jsonify({
         'months': months,
         'state': {
@@ -162,9 +176,19 @@ def api_trajectory():
     process = request.args.get('process', '固态发酵')
     raw_material = request.args.get('raw_material', '糯米')
     craft_style = request.args.get('craft_style', '传统')
-    
+    aging_vessel = request.args.get('aging_vessel', '陶缸')
+    aging_temperature = request.args.get('aging_temperature', '常温')
+
+    # 陈酿容器和温度效应系数
+    vessel_factors = AGING_VESSEL_FACTORS.get(aging_vessel, AGING_VESSEL_FACTORS['陶缸'])
+    temp_factors = AGING_TEMPERATURE_FACTORS.get(aging_temperature, AGING_TEMPERATURE_FACTORS['常温'])
+
     months_list = [0, 6, 12, 24, 36, 48, 60, 72, 84, 96, 108, 120]
     trajectory = predict_trajectory(months_list, process, raw_material, craft_style)
+
+    # 应用容器和温度效应
+    ethyl_factor = vessel_factors["ethyl_acetate_rate"] * temp_factors["ethyl_acetate_rate"]
+    tmp_factor = vessel_factors["tmp_rate"] * temp_factors["tmp_rate"]
     
     result = {
         'months': months_list,
@@ -186,13 +210,13 @@ def api_trajectory():
         result['parameters']['non_volatile_acid'].append(round(state.non_volatile_acid, 3))
         result['parameters']['reducing_sugar'].append(round(state.reducing_sugar, 3))
         result['parameters']['total_amino_acid'].append(round(state.total_amino_acid, 3))
-        result['parameters']['ethyl_acetate'].append(round(state.ethyl_acetate, 1))
-        result['parameters']['tmp'].append(round(state.tmp, 2))
+        result['parameters']['ethyl_acetate'].append(round(state.ethyl_acetate * ethyl_factor, 1))
+        result['parameters']['tmp'].append(round(state.tmp * tmp_factor, 2))
         result['parameters']['acetic_acid'].append(round(state.acetic_acid, 3))
         result['parameters']['ph'].append(round(state.ph, 3))
         profile = compute_flavor_profile(state)
         result['overall'].append(round(compute_overall_score(state, profile), 2))
-    
+
     return jsonify(result)
 
 
@@ -332,16 +356,16 @@ def api_material():
             },
             'aging': {
                 'months': result.aging_months,
-                'ethyl_acetate_mgL': result.ethyl_acetate_mgL,
-                'tmp_mgL': result.tmp_mgL,
+                'ethyl_acetate_ugmL': result.ethyl_acetate_ugmL,
+                'tmp_ugmL': result.tmp_ugmL,
                 'overall_score': result.overall_score,
             }
         },
         'final': {
             'vinegar_L': round(result.final_vinegar_L, 1),
             'total_acid_gL': round(result.final_total_acid_gL, 1),
-            'ethyl_acetate_mgL': round(result.final_ethyl_acetate_mgL, 1),
-            'tmp_mgL': round(result.final_tmp_mgL, 1),
+            'ethyl_acetate_ugmL': round(result.final_ethyl_acetate_ugmL, 1),
+            'tmp_ugmL': round(result.final_tmp_ugmL, 1),
             'overall_score': round(result.overall_score, 1),
         }
     })

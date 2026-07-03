@@ -43,8 +43,10 @@
                         <option value="糯米">糯米</option>
                         <option value="大米">大米</option>
                         <option value="高粱">高粱</option>
-                        <option value="麦芽">麦芽</option>
-                        <option value="果蔬">果蔬</option>
+                        <option value="小麦">小麦</option>
+                        <option value="玉米">玉米</option>
+                        <option value="苹果">苹果</option>
+                        <option value="葡萄">葡萄</option>
                     </select>
                 </div>
                 <div class="select-row">
@@ -52,6 +54,21 @@
                     <select id="aging_style">
                         <option value="传统">传统</option>
                         <option value="现代">现代</option>
+                    </select>
+                </div>
+                <div class="select-row">
+                    <label for="aging_vessel">陈酿容器</label>
+                    <select id="aging_vessel">
+                        <option value="陶缸" selected>陶缸</option>
+                        <option value="不锈钢">不锈钢</option>
+                    </select>
+                </div>
+                <div class="select-row">
+                    <label for="aging_temperature">陈酿温度</label>
+                    <select id="aging_temperature">
+                        <option value="低温">低温 (10-15°C)</option>
+                        <option value="常温" selected>常温 (20-25°C)</option>
+                        <option value="高温">高温 (30-35°C)</option>
                     </select>
                 </div>
             </div>
@@ -129,6 +146,10 @@ document.querySelectorAll('input[type="range"]').forEach(input => {
         if (valueSpan) {
             valueSpan.textContent = this.value;
         }
+        // 滑动时实时更新预测
+        if (this.id === 'current_months' || this.id === 'target_months') {
+            predictAging();
+        }
     });
 });
 
@@ -137,70 +158,89 @@ function getAgingParams() {
         process: document.getElementById('aging_process').value,
         raw_material: document.getElementById('aging_material').value,
         craft_style: document.getElementById('aging_style').value,
+        aging_vessel: document.getElementById('aging_vessel').value,
+        aging_temperature: document.getElementById('aging_temperature').value,
     };
 }
 
-function predictAging() {
+async function predictAging() {
     const current = document.getElementById('current_months').value;
     const target = document.getElementById('target_months').value;
     const params = getAgingParams();
-    
+
     document.getElementById('targetLabel').textContent = target;
-    
-    fetch('/api/trajectory?' + new URLSearchParams(params))
-        .then(response => response.json())
-        .then(data => {
-            updateTrajectoryChart(data);
-        })
-        .catch(error => console.error('Error:', error));
-    
-    fetch('/api/aging?months=' + target + '&' + new URLSearchParams(params))
-        .then(response => response.json())
-        .then(data => {
-            document.getElementById('pred_total_acid').textContent = data.state.total_acid + ' g/100mL';
-            document.getElementById('pred_non_volatile_acid').textContent = data.state.non_volatile_acid + ' g/100mL';
-            document.getElementById('pred_reducing_sugar').textContent = data.state.reducing_sugar + ' g/100mL';
-            document.getElementById('pred_total_amino_acid').textContent = data.state.total_amino_acid + ' g/100mL';
-            document.getElementById('pred_ethyl_acetate').textContent = data.state.ethyl_acetate + ' μg/mL';
-            document.getElementById('pred_tmp').textContent = data.state.tmp + ' μg/mL';
-            document.getElementById('pred_acetic_acid').textContent = data.state.acetic_acid + ' g/100mL';
-            document.getElementById('pred_ph').textContent = data.state.ph;
-            document.getElementById('pred_overall').textContent = data.overall.toFixed(1);
-        })
-        .catch(error => console.error('Error:', error));
+
+    try {
+        const [trajectoryData, agingData] = await Promise.all([
+            fetch('/api/trajectory?' + new URLSearchParams(params)).then(r => r.json()),
+            fetch('/api/aging?months=' + target + '&' + new URLSearchParams(params)).then(r => r.json())
+        ]);
+
+        updateTrajectoryChart(trajectoryData, target);
+
+        document.getElementById('pred_total_acid').textContent = agingData.state.total_acid.toFixed(2) + ' g/100mL';
+        document.getElementById('pred_non_volatile_acid').textContent = agingData.state.non_volatile_acid.toFixed(2) + ' g/100mL';
+        document.getElementById('pred_reducing_sugar').textContent = agingData.state.reducing_sugar.toFixed(2) + ' g/100mL';
+        document.getElementById('pred_total_amino_acid').textContent = agingData.state.total_amino_acid.toFixed(2) + ' g/100mL';
+        document.getElementById('pred_ethyl_acetate').textContent = agingData.state.ethyl_acetate.toFixed(0) + ' μg/mL';
+        document.getElementById('pred_tmp').textContent = agingData.state.tmp.toFixed(1) + ' μg/mL';
+        document.getElementById('pred_acetic_acid').textContent = agingData.state.acetic_acid.toFixed(2) + ' g/100mL';
+        document.getElementById('pred_ph').textContent = agingData.state.ph.toFixed(2);
+        document.getElementById('pred_overall').textContent = agingData.overall.toFixed(1);
+    } catch (error) {
+        console.error('Error:', error);
+    }
 }
 
-function updateTrajectoryChart(data) {
+function updateTrajectoryChart(data, currentMonths) {
     const months = data.months;
     const params = data.parameters;
-    
+
+    // 找到当前醋龄对应的索引
+    let currentIndex = months.indexOf(parseInt(currentMonths));
+    if (currentIndex === -1) currentIndex = months.length - 1;
+
     const datasets = [
         { label: '总酸 (g/100mL)', data: params.total_acid, color: '#E74C3C' },
         { label: '不挥发酸 (g/100mL)', data: params.non_volatile_acid, color: '#27AE60' },
         { label: '乙酸 (g/100mL)', data: params.acetic_acid, color: '#3498DB' },
         { label: '乙酸乙酯 (×100 μg/mL)', data: params.ethyl_acetate.map(v => v / 100), color: '#9B59B6' },
         { label: '四甲基吡嗪 (μg/mL)', data: params.tmp, color: '#F39C12' },
-        { label: 'pH (×10)', data: params.ph.map(v => v * 10), color: '#1ABC9C' },
     ];
-    
+
     if (trajectoryChart) {
         trajectoryChart.destroy();
     }
-    
+
     const ctx = document.getElementById('trajectoryChart').getContext('2d');
     trajectoryChart = new Chart(ctx, {
         type: 'line',
         data: {
             labels: months,
-            datasets: datasets.map(ds => ({
-                label: ds.label,
-                data: ds.data,
-                borderColor: ds.color,
-                backgroundColor: 'transparent',
-                tension: 0.4,
-                pointRadius: 4,
-                pointHoverRadius: 6,
-            }))
+            datasets: datasets.map(ds => {
+                // 为每个数据点创建背景色，当前点高亮
+                const pointRadius = months.map((m, i) => i === currentIndex ? 8 : 4);
+                const pointBackgroundColor = months.map((m, i) =>
+                    i === currentIndex ? '#F39C12' : ds.color
+                );
+                const pointBorderColor = months.map((m, i) =>
+                    i === currentIndex ? '#fff' : ds.color
+                );
+
+                return {
+                    label: ds.label,
+                    data: ds.data,
+                    borderColor: ds.color,
+                    backgroundColor: 'transparent',
+                    fill: false,
+                    tension: 0.4,
+                    pointRadius: pointRadius,
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: pointBackgroundColor,
+                    pointBorderColor: pointBorderColor,
+                    pointBorderWidth: months.map((m, i) => i === currentIndex ? 2 : 1),
+                };
+            })
         },
         options: {
             responsive: true,
@@ -228,6 +268,10 @@ function updateTrajectoryChart(data) {
                     callbacks: {
                         label: function(context) {
                             return context.dataset.label + ': ' + context.parsed.y.toFixed(2);
+                        },
+                        title: function(context) {
+                            return '醋龄: ' + context[0].label + '月' +
+                                   (context[0].dataIndex === currentIndex ? ' (当前)' : '');
                         }
                     }
                 }

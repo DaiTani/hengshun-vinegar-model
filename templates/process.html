@@ -540,8 +540,8 @@ async function calculateProcess() {
         // 最终成品
         document.getElementById('final_vinegar_L').textContent = data.final.vinegar_L;
         document.getElementById('final_acid').textContent = data.final.total_acid_gL;
-        document.getElementById('final_ethyl').textContent = data.final.ethyl_acetate_mgL;
-        document.getElementById('final_tmp').textContent = data.final.tmp_mgL;
+        document.getElementById('final_ethyl').textContent = data.final.ethyl_acetate_ugmL;
+        document.getElementById('final_tmp').textContent = data.final.tmp_ugmL;
         document.getElementById('final_score').textContent = data.final.overall_score;
 
     } catch (error) {

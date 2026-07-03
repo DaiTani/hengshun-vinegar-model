@@ -254,16 +254,16 @@ class FullProcessOutput:
     leaching: StageOutput = field(default_factory=StageOutput)
     aging_months: float = 0.0
 
-    # 风味物质 (来自aging_kinetics)
-    ethyl_acetate_mgL: float = 0.0
-    tmp_mgL: float = 0.0
+    # 风味物质 (来自aging_kinetics, 单位μg/mL = mg/L)
+    ethyl_acetate_ugmL: float = 0.0
+    tmp_ugmL: float = 0.0
     overall_score: float = 0.0
 
     # 最终成品
     final_vinegar_L: float = 0.0
     final_total_acid_gL: float = 0.0
-    final_ethyl_acetate_mgL: float = 0.0
-    final_tmp_mgL: float = 0.0
+    final_ethyl_acetate_ugmL: float = 0.0
+    final_tmp_ugmL: float = 0.0
 
     def as_dict(self) -> Dict:
         return {
@@ -280,8 +280,8 @@ class FullProcessOutput:
             "final": {
                 "vinegar_L": round(self.final_vinegar_L, 1),
                 "total_acid_gL": round(self.final_total_acid_gL, 1),
-                "ethyl_acetate_mgL": round(self.final_ethyl_acetate_mgL, 1),
-                "tmp_mgL": round(self.final_tmp_mgL, 1),
+                "ethyl_acetate_ugmL": round(self.final_ethyl_acetate_ugmL, 1),
+                "tmp_ugmL": round(self.final_tmp_ugmL, 1),
             }
         }
 
@@ -933,13 +933,13 @@ class MaterialBasedModel:
 
             # 初始乙酸乙酯较高 (果香)
             initial_ethyl_baseline = 1500.0 * temp["ethyl_acetate_rate"]  # 温度影响
-            ethyl_acetate_mgL = initial_ethyl_baseline + aging_months_adj * 20 * temp["ethyl_acetate_rate"]
-            ethyl_acetate_mgL = min(ethyl_acetate_mgL, 4000.0)
+            ethyl_acetate_ugmL = initial_ethyl_baseline + aging_months_adj * 20 * temp["ethyl_acetate_rate"]
+            ethyl_acetate_ugmL = min(ethyl_acetate_ugmL, 4000.0)
 
             # TMP在果蔬醋中不重要
             initial_tmp_baseline = 5.0 * temp["tmp_rate"]
-            tmp_mgL = initial_tmp_baseline + aging_months_adj * 0.5 * temp["tmp_rate"]
-            tmp_mgL = min(tmp_mgL, 50.0)
+            tmp_ugmL = initial_tmp_baseline + aging_months_adj * 0.5 * temp["tmp_rate"]
+            tmp_ugmL = min(tmp_ugmL, 50.0)
 
             # 果蔬醋的process用于风味计算
             aging_process = "液态发酵" if "苹果" in input_params.raw_material_type or "葡萄" in input_params.raw_material_type else "固态发酵"
@@ -963,13 +963,13 @@ class MaterialBasedModel:
             total_ethyl_factor = ethyl_factor * vessel["ethyl_acetate_rate"] * temp["ethyl_acetate_rate"]
             ethyl_increase = (aging_ref_t.ethyl_acetate - aging_ref_0.ethyl_acetate) * total_ethyl_factor
             initial_ethyl_baseline = 800.0 * ethyl_factor
-            ethyl_acetate_mgL = max(initial_ethyl_baseline, min(initial_ethyl_baseline + ethyl_increase, 5000.0))
+            ethyl_acetate_ugmL = max(initial_ethyl_baseline, min(initial_ethyl_baseline + ethyl_increase, 5000.0))
 
             # TMP增量计算 (受原料风味因子、容器效应和温度影响)
             total_tmp_factor = tmp_factor * vessel["tmp_rate"] * temp["tmp_rate"]
             tmp_increase = (aging_ref_t.tmp - aging_ref_0.tmp) * total_tmp_factor
             initial_tmp_baseline = 10.0 * tmp_factor
-            tmp_mgL = max(initial_tmp_baseline, min(initial_tmp_baseline + tmp_increase * 2, 200.0))
+            tmp_ugmL = max(initial_tmp_baseline, min(initial_tmp_baseline + tmp_increase * 2, 200.0))
 
             aging_process = "固态发酵"
 
@@ -997,8 +997,8 @@ class MaterialBasedModel:
             non_volatile_acid=non_volatile_acid,
             reducing_sugar=aging_ref.reducing_sugar if raw_type == "starch" else 2.0,
             total_amino_acid=aging_ref.total_amino_acid if raw_type == "starch" else 0.1,
-            ethyl_acetate=ethyl_acetate_mgL,
-            tmp=tmp_mgL,
+            ethyl_acetate=ethyl_acetate_ugmL,
+            tmp=tmp_ugmL,
             acetic_acid=acetic_acid_kg / vinegar_L * 10,
             ph=aging_ref.ph if raw_type == "starch" else 3.5,
             process=aging_process,
@@ -1017,13 +1017,13 @@ class MaterialBasedModel:
             aaf=aaf_output,
             leaching=leach_output,
             aging_months=input_params.aging_months,
-            ethyl_acetate_mgL=ethyl_acetate_mgL,
-            tmp_mgL=tmp_mgL,
+            ethyl_acetate_ugmL=ethyl_acetate_ugmL,
+            tmp_ugmL=tmp_ugmL,
             overall_score=overall,
             final_vinegar_L=vinegar_L,
             final_total_acid_gL=final_acid_gL,  # 使用陈酿后的总酸
-            final_ethyl_acetate_mgL=ethyl_acetate_mgL,
-            final_tmp_mgL=tmp_mgL,
+            final_ethyl_acetate_ugmL=ethyl_acetate_ugmL,
+            final_tmp_ugmL=tmp_ugmL,
         )
 
 
