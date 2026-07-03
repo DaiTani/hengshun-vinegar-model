@@ -218,15 +218,175 @@ def api_process():
     })
 
 
+@app.route('/api/saccharification', methods=['GET'])
+def api_saccharification():
+    """原料糖化工序模拟"""
+    model = VinegarProductionModel()
+    hours = float(request.args.get('hours', 1.0))
+    temp = float(request.args.get('temperature', 60.0))
+    raw_material = request.args.get('raw_material', '糯米')
+
+    state = model.saccharification.get_state_at(hours, temp, raw_material)
+
+    return jsonify({
+        'input': {
+            'hours': hours,
+            'temperature': temp,
+            'raw_material': raw_material,
+        },
+        'output': {
+            'reducing_sugar': state.reducing_sugar,
+            'starch_conversion_rate': state.starch_conversion_rate,
+            'duration_hours': state.duration_hours,
+            'temperature': state.temperature,
+        }
+    })
+
+
+@app.route('/api/alcohol', methods=['GET'])
+def api_alcohol():
+    """酒精发酵工序模拟"""
+    model = VinegarProductionModel()
+    days = float(request.args.get('days', 5.0))
+    initial_sugar = float(request.args.get('initial_sugar', 10.0))
+    temp = float(request.args.get('temperature', 30.0))
+
+    state = model.alcohol.get_state_at(days, initial_sugar, temp)
+
+    return jsonify({
+        'input': {
+            'days': days,
+            'initial_sugar': initial_sugar,
+            'temperature': temp,
+        },
+        'output': {
+            'ethanol': state.ethanol,
+            'reducing_sugar': state.reducing_sugar,
+            'yeast_viability': state.yeast_viability,
+            'CO2_production': state.CO2_production,
+            'duration_days': state.duration_days,
+            'temperature': state.temperature,
+        }
+    })
+
+
+@app.route('/api/acid', methods=['GET'])
+def api_acid():
+    """醋酸发酵工序模拟"""
+    model = AAFModel()
+    days = float(request.args.get('days', 18))
+
+    aaf_state = model.get_state_at(days)
+    turning = model.recommend_turning(
+        days,
+        oxygen_upper=aaf_state.oxygen_upper,
+        oxygen_lower=aaf_state.oxygen_lower,
+        temperature=aaf_state.temperature_upper
+    )
+
+    sim_data = model.simulate(n_points=200)
+
+    return jsonify({
+        'input': {'days': days},
+        'output': {
+            'day': aaf_state.day,
+            'stage': aaf_state.stage,
+            'total_acid': aaf_state.total_acid,
+            'acetic_acid': aaf_state.acetic_acid,
+            'non_volatile_acid': aaf_state.non_volatile_acid,
+            'lactic_acid': aaf_state.lactic_acid,
+            'ethanol_residual': aaf_state.ethanol_residual,
+            'oxygen_upper': aaf_state.oxygen_upper,
+            'oxygen_lower': aaf_state.oxygen_lower,
+            'temperature_upper': aaf_state.temperature_upper,
+        },
+        'turning': turning,
+        'simulation': {
+            'time': sim_data['time'],
+            'total_acid': sim_data['total_acid'],
+            'acetic_acid': sim_data['acetic_acid'],
+        }
+    })
+
+
+@app.route('/api/leaching', methods=['GET'])
+def api_leaching():
+    """淋醋工序模拟"""
+    model = VinegarProductionModel()
+    aaf_days = float(request.args.get('aaf_days', 18))
+    water_ratio = float(request.args.get('water_ratio', 1.2))
+    leaching_time = float(request.args.get('leaching_time', 16.0))
+
+    aaf_model = AAFModel()
+    aaf_state = aaf_model.get_state_at(aaf_days)
+    leached_state = model.leaching.get_state_at(aaf_state, water_ratio, leaching_time)
+
+    return jsonify({
+        'input': {
+            'aaf_days': aaf_days,
+            'water_ratio': water_ratio,
+            'leaching_time': leaching_time,
+        },
+        'output': {
+            'total_acid': leached_state.total_acid,
+            'ethyl_acetate': leached_state.ethyl_acetate,
+            'reducing_sugar': leached_state.reducing_sugar,
+            'extraction_efficiency': leached_state.extraction_efficiency,
+            'water_ratio': leached_state.water_ratio,
+            'leaching_time': leached_state.leaching_time,
+        }
+    })
+
+
+@app.route('/api/aging_stage', methods=['GET'])
+def api_aging_stage():
+    """陈酿工序模拟"""
+    months = float(request.args.get('months', 12))
+    process = request.args.get('process', '固态发酵')
+    raw_material = request.args.get('raw_material', '糯米')
+    craft_style = request.args.get('craft_style', '传统')
+
+    state = age_to_state(months, process, raw_material, craft_style)
+    profile = compute_flavor_profile(state)
+    sensory = compute_sensory_score(state)
+    overall = compute_overall_score(state, profile, sensory)
+
+    return jsonify({
+        'input': {
+            'months': months,
+            'process': process,
+            'raw_material': raw_material,
+            'craft_style': craft_style,
+        },
+        'output': {
+            'vinegar_age_months': state.vinegar_age_months,
+            'total_acid': state.total_acid,
+            'ethyl_acetate': state.ethyl_acetate,
+            'tmp': state.tmp,
+            'ph': state.ph,
+        },
+        'flavor': profile.as_dict(),
+        'overall': overall
+    })
+
+
 if __name__ == '__main__':
     print("=" * 60)
     print("  醋风味监测系统 - Vinegar Flavor Monitoring System")
+    print("  五工序生产模型 v2.1.0")
     print("=" * 60)
     print("  Running at: http://127.0.0.1:2026")
     print("  Pages:")
-    print("    /        - 首页 (Flavor Monitoring)")
-    print("    /aging   - 陈酿预测 (Aging Prediction)")
-    print("    /aaf     - AAF发酵 (AAF Fermentation)")
-    print("    /about   - 关于 (About)")
+    print("    /           - 首页 (风味监测)")
+    print("    /aging      - 陈酿预测")
+    print("    /aaf        - AAF发酵")
+    print("    /about      - 关于")
+    print("  API Endpoints:")
+    print("    /api/saccharification - 原料糖化")
+    print("    /api/alcohol          - 酒精发酵")
+    print("    /api/acid             - 醋酸发酵")
+    print("    /api/leaching         - 淋醋")
+    print("    /api/aging_stage     - 陈酿")
+    print("    /api/process          - 完整流程")
     print("=" * 60)
     app.run(debug=True, host='0.0.0.0', port=2026)
