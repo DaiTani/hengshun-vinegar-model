@@ -6,13 +6,15 @@ process_model.py : 镇江香醋五工序生产过程模型
 
 1. 原料糖化 (Saccharification)
    - 糯米/大米中的淀粉在曲霉作用下糖化为还原糖
-   - 温度: 60-65°C, 时间: 48-72h
+   - 温度: 60°C, 时间: 与酒精发酵同步 (薛茂云, 2018)
    - 关键产物: 还原糖
+   - 注: 实际工艺为边糖化边发酵，本模型使用简化处理
 
 2. 酒精发酵 (Alcoholic Fermentation)
    - 酵母菌将糖转化为乙醇
    - 温度: 28-32°C, 时间: 5-7天
    - 关键产物: 乙醇, CO2
+   - 文献: 丁乾坤(2019) 动力学模型 R²>0.98
 
 3. 醋酸发酵 (AAF - Acetic Acid Fermentation)
    - 醋酸菌将乙醇氧化为乙酸
@@ -35,11 +37,26 @@ process_model.py : 镇江香醋五工序生产过程模型
 
 文献依据
 --------
-- 王超等(2020): 醋酸发酵阶段理化指标动态分析
-- 任晓荣等(2023): 不同陈酿年份镇江香醋品质指标分析
-- 郑梦林等(2021): 陈酿过程中主要呈味物质分析
-- 刘卓非等(2022): 固态酿造过程氧含量监测
-- 李晓伟等(2022): 发酵罐条件优化及动力学分析
+醋酸发酵:
+  - 王超等(2020): 醋酸发酵阶段理化指标动态分析 (R²=0.998)
+
+陈酿:
+  - 任晓荣等(2023): 不同陈酿年份镇江香醋品质指标分析
+  - 郑梦林等(2021): 陈酿过程中主要呈味物质分析
+
+酒精发酵:
+  - 丁乾坤(2019): 酒精发酵产物动力学模型研究
+    * Gompertz模型 R²: 0.981-0.994
+    * 乙醇收率: 0.42-0.48
+  - 刘海英(2017): 响应面法优化紫薯酒精发酵条件
+    * 最优条件: pH4.06, 29.74°C
+    * 糖消耗DoseResp模型 R²=0.99866
+
+糖化工艺:
+  - 薛茂云(2018): 镇江香醋糖化工艺研究
+    * 最佳工艺: 蒸煮6s, 60°C糖化60min, 糖化酶100U/g, α-淀粉酶20U/g
+    * 最终酒精度可达12%
+    * 注: 缺乏还原糖-时间动力学曲线数据
 """
 
 from __future__ import annotations
@@ -176,29 +193,38 @@ class SaccharificationModel:
         d[糖]/dt = k * [淀粉]
     其中k遵循Arrhenius方程。
 
-    典型参数:
-    - 温度: 60-65°C
-    - 时间: 48-72小时
-    - 糯米淀粉转化率可达85-90%
+    文献参数 (薛茂云, 2018):
+    - 最佳工艺: 蒸煮6s, 60°C糖化60min, 糖化酶100U/g, α-淀粉酶20U/g
+    - 米水比: 1:3
+    - 糖化60min后酒精度可达12%
+    - 糯米淀粉转化率可达88%
+
+    注: 缺乏糖化还原糖-时间的详细动力学曲线数据，
+    当前模型使用Arrhenius方程估算，实际应用时建议参考薛茂云工艺参数。
     """
 
     def __init__(self):
-        self.base_k = 0.035  # 基准反应速率 (1/h)
-        self.Ea = 45000     # 活化能 (J/mol)
+        self.base_k = 0.7   # 基准反应速率 (1/h), 60°C时约0.7 h⁻¹
+        self.Ea = 42000     # 活化能 (J/mol), 淀粉糖化
         self.R = 8.314      # 气体常数
 
     def _arrhenius_k(self, T: float) -> float:
         return self.base_k * math.exp(self.Ea / self.R * (1 / 333.15 - 1 / (T + 273.15)))
 
-    def get_state_at(self, hours: float, temperature: float = 62.0,
+    def get_state_at(self, hours: float, temperature: float = 60.0,
                      raw_material: str = "糯米") -> SaccharificationState:
         """
         获取糖化hours小时后的状态
 
         参数:
             hours: 糖化时长(小时)
-            temperature: 糖化温度(°C)
+            temperature: 糖化温度(°C), 最佳60°C (薛茂云, 2018)
             raw_material: 原料类型
+
+        文献依据:
+            薛茂云等(2018)《镇江香醋糖化工艺的研究》
+            - 最佳条件: 60°C糖化60min, 糖化酶100U/g, α-淀粉酶20U/g
+            - 最终酒精度可达12%
         """
         k = self._arrhenius_k(temperature)
         max_conversion = {"糯米": 0.88, "大米": 0.82, "高粱": 0.75, "麦芽": 0.85}.get(raw_material, 0.85)
@@ -220,41 +246,54 @@ class AlcoholFermentationModel:
     酒精发酵模型
 
     模拟酵母菌将还原糖转化为乙醇的过程。
-    采用Logistic生长+产物形成模型:
+    采用修正Logistic模型 (Gompertz方程) 拟合乙醇生成过程。
 
-    dX/dt = μ_max * X * (1 - X/Xm)
-    dP/dt = Yp/s * dX/dt + β * X
+    文献参数 (丁乾坤, 2019; 刘海英, 2017):
+    - Gompertz模型 R² > 0.98
+    - Logistic修正模型 R² > 0.96
+    - 乙醇收率: 0.42-0.48 (42%-48%)
+    - 最大比生成速率 ν_max ≈ 0.14 h⁻¹
+    - 酵母生长: 0-6h适应期, 6-16h对数期, 16-22h稳定期
 
-    典型参数:
-    - 温度: 28-32°C
-    - 时间: 5-7天
-    - 乙醇产量: 8-12% v/v
+    文献依据:
+        丁乾坤(2019)《酒精发酵产物动力学模型的研究》
+            - 初糖150-250 g/L, 35°C发酵
+            - Gompertz模型 R²: 0.981-0.994
+        刘海英(2017)《响应面法优化紫薯酒精发酵条件及动力学研究》
+            - 最优条件: pH4.06, 29.74°C, 接种量4.58×10⁶ cfu/mL
+            - 糖消耗 DoseResp模型 R² = 0.99866
     """
 
     def __init__(self):
-        self.mu_max = 0.25    # 最大比增长速率 (1/day)
+        self.mu_max = 0.30    # 最大比增长速率 (1/day), 对数期约0.14 h⁻¹
         self.Xm = 1.0        # 最大菌体浓度 (归一化)
-        self.Yps = 0.48      # 产物得率系数
+        self.Yps = 0.47      # 产物得率系数 (丁乾坤: 0.42-0.48)
         self.beta = 0.02     # 维持系数
+        self.nu_max = 0.14   # 最大乙醇比生成速率 (h⁻¹), 丁乾坤数据
 
-    def get_state_at(self, days: float, initial_sugar: float = 10.0,
+    def get_state_at(self, days: float, initial_sugar: float = 15.0,
                      temperature: float = 30.0) -> AlcoholFermentationState:
         """
         获取酒精发酵days天后的状态
 
-        镇江香醋酒精发酵典型参数:
-        - 初始糖度: 14-16°Bx (约10-12g/100mL还原糖)
-        - 乙醇产量: 8-10% v/v (5-6天)
-        - 发酵周期: 5-7天
+        参数:
+            days: 发酵天数
+            initial_sugar: 初始还原糖 (g/100mL), 典型15-20 g/100mL
+            temperature: 发酵温度(°C), 典型28-32°C
+
+        文献依据:
+            丁乾坤(2019): 初糖150-250 g/L, 乙醇收率0.42-0.48
+            刘海英(2017): 最优29.74°C, 酵母对数期6-16h
         """
         if temperature < 25 or temperature > 35:
             temp_factor = 0.85
         else:
             temp_factor = 1.0
 
-        X = self.Xm / (1 + (self.Xm / 0.05 - 1) * math.exp(-self.mu_max * temp_factor * days))
-        ethanol = min(10.0, self.Yps * initial_sugar * (1 - math.exp(-0.4 * days)) * 0.85)
-        residual_sugar = max(0.5, initial_sugar * math.exp(-0.5 * days))
+        hours = days * 24.0
+        X = self.Xm / (1 + (self.Xm / 0.05 - 1) * math.exp(-self.mu_max * temp_factor * hours))
+        ethanol = min(12.0, self.Yps * initial_sugar * (1 - math.exp(-self.nu_max * hours * 0.85)))
+        residual_sugar = max(0.5, initial_sugar * math.exp(-0.5 * hours / 24.0))
         yeast_viab = max(0.3, 1.0 - 0.03 * days)
         CO2 = ethanol * 1.92
 
@@ -277,14 +316,18 @@ class LeachingModel:
 
     C_final = C_initial * extraction_efficiency * dilution_factor
 
-    典型参数:
+    文献参数:
     - 加水比: 1:1 到 1:2 (醋醅:水)
     - 时间: 12-24小时
     - 总酸提取率: 70-85%
+
+    注: 淋醋后得到的醋液总酸约为AAF醋醅的60-70%,
+    因为醋醅中含有约30-40%的水分, 加水后提取的是稀释液,
+    后续通过勾调达到成品醋标准(5-6g/100mL总酸)。
     """
 
     def __init__(self):
-        self.base_extraction = 0.85  # 基准提取率 (总酸提取约85%)
+        self.base_extraction = 0.80  # 基准提取率 (总酸提取约80%)
         self.water_ratio = 1.2       # 基准加水比
 
     def get_state_at(self, aaf_state: AAFState,
@@ -297,10 +340,6 @@ class LeachingModel:
             aaf_state: 醋酸发酵结束时的状态
             water_ratio: 加水比例 (醋醅:水), 实际生产中约1:0.8-1:1.2
             leaching_time: 浸出时间(小时)
-
-        注: 淋醋后得到的醋液总酸约为AAF醋醅的60-70%,
-        因为醋醅中含有约30-40%的水分, 加水后提取的是稀释液,
-        后续通过勾调达到成品醋标准(5-6g/100mL总酸)。
         """
         time_factor = 1.0 - math.exp(-leaching_time / 24.0)
         extraction = self.base_extraction * time_factor
