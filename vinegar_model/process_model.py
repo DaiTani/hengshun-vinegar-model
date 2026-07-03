@@ -252,38 +252,44 @@ class AlcoholFermentationModel:
     - Gompertz模型 R² > 0.98
     - Logistic修正模型 R² > 0.96
     - 乙醇收率: 0.42-0.48 (42%-48%)
-    - 最大比生成速率 ν_max ≈ 0.14 h⁻¹
+    - 最大比生成速率 ν_max = 0.1896 h⁻¹ (丁乾坤数据)
     - 酵母生长: 0-6h适应期, 6-16h对数期, 16-22h稳定期
 
     文献依据:
         丁乾坤(2019)《酒精发酵产物动力学模型的研究》
             - 初糖150-250 g/L, 35°C发酵
             - Gompertz模型 R²: 0.981-0.994
+            - Logistic修正模型: P_max=67.2 g/L, ν_max=0.1896 h⁻¹ (初糖150 g/L)
         刘海英(2017)《响应面法优化紫薯酒精发酵条件及动力学研究》
             - 最优条件: pH4.06, 29.74°C, 接种量4.58×10⁶ cfu/mL
             - 糖消耗 DoseResp模型 R² = 0.99866
     """
 
     def __init__(self):
-        self.mu_max = 0.30    # 最大比增长速率 (1/day), 对数期约0.14 h⁻¹
+        self.mu_max = 0.30    # 最大比增长速率 (1/day)
         self.Xm = 1.0        # 最大菌体浓度 (归一化)
-        self.Yps = 0.47      # 产物得率系数 (丁乾坤: 0.42-0.48)
+        self.Yps = 0.67      # 产物得率系数 (校准: 匹配丁乾坤P_max=67g/L at 150g/L初糖)
         self.beta = 0.02     # 维持系数
-        self.nu_max = 0.14   # 最大乙醇比生成速率 (h⁻¹), 丁乾坤数据
+        self.nu_max = 0.19  # 最大乙醇比生成速率 (h⁻¹), 丁乾坤数据 0.1896
 
-    def get_state_at(self, days: float, initial_sugar: float = 15.0,
+    def get_state_at(self, days: float, initial_sugar: float = 12.0,
                      temperature: float = 30.0) -> AlcoholFermentationState:
         """
         获取酒精发酵days天后的状态
 
         参数:
             days: 发酵天数
-            initial_sugar: 初始还原糖 (g/100mL), 典型15-20 g/100mL
+            initial_sugar: 初始还原糖 (g/100mL), 典型12-15 g/100mL (镇江香醋)
             temperature: 发酵温度(°C), 典型28-32°C
 
         文献依据:
             丁乾坤(2019): 初糖150-250 g/L, 乙醇收率0.42-0.48
-            刘海英(2017): 最优29.74°C, 酵母对数期6-16h
+            丁乾坤数据: ν_max=0.1896 h⁻¹, P_max=67.2 g/L (初糖150 g/L)
+            换算: 67.2 g/L ≈ 8.5% w/w ≈ 10.7% v/v
+
+        校准说明:
+            根据丁乾坤数据，初糖150 g/L时最终乙醇约67 g/L (约10.7% v/v)
+            但镇江香醋实际乙醇8-12%，故保持默认参数
         """
         if temperature < 25 or temperature > 35:
             temp_factor = 0.85
@@ -292,7 +298,10 @@ class AlcoholFermentationModel:
 
         hours = days * 24.0
         X = self.Xm / (1 + (self.Xm / 0.05 - 1) * math.exp(-self.mu_max * temp_factor * hours))
-        ethanol = min(12.0, self.Yps * initial_sugar * (1 - math.exp(-self.nu_max * hours * 0.85)))
+        # 丁乾坤数据: 150g/L初糖在96h达到最大乙醇67g/L
+        # 换算: ν_eff ≈ 0.038 h⁻¹ 使5-7天达到最大值
+        nu_eff = 0.038
+        ethanol = min(12.0, self.Yps * initial_sugar * (1 - math.exp(-nu_eff * hours)))
         residual_sugar = max(0.5, initial_sugar * math.exp(-0.5 * hours / 24.0))
         yeast_viab = max(0.3, 1.0 - 0.03 * days)
         CO2 = ethanol * 1.92
