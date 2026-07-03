@@ -328,6 +328,78 @@ def main():
     print(f"  原因: {rec['reasons']}")
 
 
+# 基于原料的AAF计算
+# 王超2020数据: 基准乙醇约6-8%, 对应总酸增加约5 g/100mL
+WANG_CHAO_REFERENCE_ETHANOL_PCT = 7.0  # 王超数据的基准乙醇浓度 %
+WANG_CHAO_ACID_INCREASE = 5.0  # 总酸增量 g/100mL
+
+
+def calculate_from_ethanol(
+    ethanol_kg: float,
+    mash_volume_L: float,
+    days: float = 18.0
+) -> dict:
+    """
+    基于实际乙醇量计算AAF产出
+
+    化学计量:
+    - 乙醇 → 乙酸: 1g乙醇 → 1.30g乙酸 (理论值)
+    - 实际收率约85% (考虑挥发、副反应等)
+
+    参数:
+        ethanol_kg: 乙醇产量 (kg)
+        mash_volume_L: 醪液体积 (L)
+        days: 发酵天数
+
+    返回:
+        dict: 含acetic_acid_kg, total_acid_kg, total_acid_gL等
+    """
+    # 乙醇浓度 (%, v/v)
+    ethanol_pct = (ethanol_kg / mash_volume_L) * 100 / 0.789
+
+    # 基准收率: 王超数据中7%乙醇 → 约5g/100mL总酸增量
+    # 实际收率需要根据乙醇浓度调整
+    if ethanol_pct < 4:
+        efficiency = 0.70  # 低乙醇浓度，菌体活性受限
+    elif ethanol_pct < 6:
+        efficiency = 0.80
+    elif ethanol_pct < 8:
+        efficiency = 0.85
+    else:
+        efficiency = 0.75  # 高乙醇浓度，产物抑制
+
+    # 乙酸产量 (kg)
+    # 1g乙醇理论产1.30g乙酸
+    acetic_acid_kg = ethanol_kg * 1.30 * efficiency
+
+    # 总酸产量 (乙酸约占90%，其余为乳酸等)
+    acetic_ratio = 0.90
+    total_acid_kg = acetic_acid_kg / acetic_ratio
+
+    # 醋醅量 (L, 发酵后体积略减)
+    vinegar_mash_L = mash_volume_L * 0.95
+
+    # 总酸浓度 (g/L)
+    total_acid_gL = total_acid_kg / vinegar_mash_L * 1000
+
+    # 乙酸浓度 (g/L)
+    acetic_acid_gL = acetic_acid_kg / vinegar_mash_L * 1000
+
+    # 与基准的比例 (用于风味物质计算)
+    scale_factor = ethanol_pct / WANG_CHAO_REFERENCE_ETHANOL_PCT
+
+    return {
+        "ethanol_pct": ethanol_pct,
+        "acetic_acid_kg": acetic_acid_kg,
+        "total_acid_kg": total_acid_kg,
+        "total_acid_gL": total_acid_gL,
+        "acetic_acid_gL": acetic_acid_gL,
+        "vinegar_mash_L": vinegar_mash_L,
+        "scale_factor": scale_factor,
+        "efficiency": efficiency,
+    }
+
+
 if __name__ == "__main__":
     main()
 

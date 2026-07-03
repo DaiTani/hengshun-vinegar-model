@@ -9,7 +9,10 @@ from vinegar_model.flavor_radar import (
     compute_sensory_score, compute_overall_score
 )
 from vinegar_model.aging_kinetics import age_to_state, predict_trajectory
-from vinegar_model.process_model import recommend_turning, VinegarProductionModel
+from vinegar_model.process_model import (
+    recommend_turning, VinegarProductionModel,
+    MaterialBasedModel, ProductionInput, calculate_from_raw_material
+)
 from vinegar_model.aaf_kinetics import AAFModel
 
 app = Flask(__name__)
@@ -19,6 +22,11 @@ app.config['JSON_AS_ASCII'] = False
 @app.route('/')
 def index():
     return render_template('index.html')
+
+
+@app.route('/process')
+def process_view():
+    return render_template('process.html')
 
 
 @app.route('/aging')
@@ -214,6 +222,127 @@ def api_process():
             'aaf': state.aaf.as_dict(),
             'leaching': state.leaching.as_dict(),
             'vinegar_age_months': state.vinegar_age_months,
+        }
+    })
+
+
+@app.route('/api/material', methods=['GET'])
+def api_material():
+    """
+    基于原料量的镇江香醋生产计算
+
+    支持原料类型:
+    - 淀粉基: 糯米(70%), 大米(65%), 高粱(60%), 小麦(55%), 玉米(60%)
+    - 糖基: 苹果(12%), 葡萄(17%)
+
+    支持生产规模:
+    - lab: 实验室规模 (<10kg原料)
+    - pilot: 中试规模 (10-500kg)
+    - production: 生产规模 (>500kg)
+
+    支持陈酿容器:
+    - 陶缸: 传统透气容器, 风味物质形成快
+    - 不锈钢: 密闭容器, 风味变化慢但稳定
+
+    支持陈酿温度:
+    - 低温: 10-15°C, 地窖陈酿, 风味缓慢形成
+    - 常温: 20-25°C, 室内陈酿, 风味自然演化
+    - 高温: 30-35°C, 加速陈酿, 风味形成快但可能不够细腻
+
+    支持AAF翻醅次数: 0-3次
+
+    参数:
+        raw_material_kg: 原料量 (kg), 默认100
+        raw_material_type: 原料类型, 默认"糯米"
+        scale_type: 生产规模, 默认"pilot"
+        aging_vessel: 陈酿容器, 默认"陶缸"
+        aging_temperature: 陈酿温度, 默认"常温"
+        aaf_turnover_times: AAF翻醅次数, 默认2
+        water_ratio: 加水比 (米:水), 默认3.0
+        alcohol_days: 酒精发酵天数, 默认6
+        aaf_days: AAF发酵天数, 默认18
+        leaching_water_ratio: 淋醋加水比, 默认1.5
+        aging_months: 陈酿月数, 默认60
+
+    返回:
+        各工序产出和最终成品指标
+    """
+    raw_material_kg = float(request.args.get('raw_material_kg', 100))
+    raw_material_type = request.args.get('raw_material_type', '糯米')
+    scale_type = request.args.get('scale_type', 'pilot')
+    aging_vessel = request.args.get('aging_vessel', '陶缸')
+    aging_temperature = request.args.get('aging_temperature', '常温')
+    aaf_turnover_times = int(request.args.get('aaf_turnover_times', 2))
+    water_ratio = float(request.args.get('water_ratio', 3.0))
+    alcohol_days = float(request.args.get('alcohol_days', 6))
+    aaf_days = float(request.args.get('aaf_days', 18))
+    leaching_water_ratio = float(request.args.get('leaching_water_ratio', 1.5))
+    aging_months = float(request.args.get('aging_months', 60))
+
+    result = calculate_from_raw_material(
+        raw_material_kg=raw_material_kg,
+        raw_material_type=raw_material_type,
+        scale_type=scale_type,
+        aging_vessel=aging_vessel,
+        aging_temperature=aging_temperature,
+        aaf_turnover_times=aaf_turnover_times,
+        water_ratio=water_ratio,
+        alcohol_days=alcohol_days,
+        aaf_days=aaf_days,
+        leaching_water_ratio=leaching_water_ratio,
+        aging_months=aging_months,
+    )
+
+    return jsonify({
+        'input': {
+            'raw_material_kg': result.input.raw_material_kg,
+            'raw_material_type': result.input.raw_material_type,
+            'water_ratio': result.input.water_ratio,
+            'alcohol_days': result.input.alcohol_days,
+            'aaf_days': result.input.aaf_days,
+            'leaching_water_ratio': result.input.leaching_water_ratio,
+            'aging_months': result.input.aging_months,
+        },
+        'stages': {
+            'saccharification': {
+                'stage': result.saccharification.stage_name,
+                'input_kg': result.saccharification.input_kg,
+                'volume_L': result.saccharification.volume_L,
+                'starch_kg': result.saccharification.starch_kg,
+                'glucose_kg': result.saccharification.glucose_kg,
+                'glucose_conc_gL': result.saccharification.glucose_conc_gL,
+                'conversion_rate': result.saccharification.conversion_rate,
+            },
+            'alcohol': {
+                'stage': result.alcohol.stage_name,
+                'ethanol_kg': result.alcohol.ethanol_kg,
+                'ethanol_conc_pct': result.alcohol.ethanol_conc_pct,
+            },
+            'aaf': {
+                'stage': result.aaf.stage_name,
+                'acetic_acid_kg': result.aaf.acetic_acid_kg,
+                'total_acid_kg': result.aaf.total_acid_kg,
+                'total_acid_conc_gL': result.aaf.total_acid_conc_gL,
+            },
+            'leaching': {
+                'stage': result.leaching.stage_name,
+                'final_vinegar_L': result.final_vinegar_L,
+                'total_acid_conc_gL': result.leaching.total_acid_conc_gL,
+                'extraction_efficiency': result.leaching.extraction_efficiency,
+            },
+            'aging': {
+                'months': result.aging_months,
+                'ethyl_acetate_mgL': result.ethyl_acetate_mgL,
+                'tmp_mgL': result.tmp_mgL,
+                'overall_score': result.overall_score,
+            }
+        },
+        'final': {
+            'vinegar_L': round(result.final_vinegar_L, 1),
+            'total_acid_gL': round(result.final_total_acid_gL, 1),
+            'ethyl_acetate_mgL': round(result.final_ethyl_acetate_mgL, 1),
+            'tmp_mgL': round(result.final_tmp_mgL, 1),
+            'overall_score': round(result.overall_score, 1),
         }
     })
 

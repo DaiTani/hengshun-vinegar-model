@@ -1,0 +1,556 @@
+{% extends "base.html" %}
+
+{% block title %}工艺模拟 - 醋风味监测系统{% endblock %}
+
+{% block extra_head %}
+<style>
+.process-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1.5rem;
+}
+
+.page-header {
+    margin-bottom: 2rem;
+}
+
+.page-header h1 {
+    font-size: 1.5rem;
+    color: #1a1a1a;
+    margin-bottom: 0.25rem;
+}
+
+.page-header .subtitle {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+/* 工艺流程图 */
+.process-flow {
+    display: flex;
+    align-items: center;
+    background: #f5f5f5;
+    padding: 1rem 1.5rem;
+    border-radius: 4px;
+    margin-bottom: 2rem;
+}
+
+.stage-node {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 80px;
+}
+
+.stage-num {
+    width: 24px;
+    height: 24px;
+    background: #1a1a1a;
+    color: #fff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    margin-bottom: 0.5rem;
+}
+
+.stage-name {
+    font-size: 0.85rem;
+    color: #1a1a1a;
+    font-weight: 500;
+}
+
+.stage-time {
+    font-size: 0.7rem;
+    color: #888;
+    margin-top: 0.25rem;
+}
+
+.flow-arrow {
+    color: #ccc;
+    padding: 0 0.75rem;
+    font-size: 1.25rem;
+}
+
+/* 标签页 */
+.tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid #ddd;
+    margin-bottom: 1.5rem;
+}
+
+.tab-btn {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: #666;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+}
+
+.tab-btn:hover {
+    color: #1a1a1a;
+}
+
+.tab-btn.active {
+    color: #1a1a1a;
+    border-bottom-color: #1a1a1a;
+    font-weight: 500;
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+/* 参数区域 */
+.param-section {
+    background: #fafafa;
+    border: 1px solid #eee;
+    padding: 1.5rem;
+    border-radius: 4px;
+    margin-bottom: 1.5rem;
+}
+
+.section-title {
+    font-size: 0.75rem;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 1rem;
+}
+
+.param-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+}
+
+.param-item {
+    display: flex;
+    flex-direction: column;
+}
+
+.param-item label {
+    font-size: 0.75rem;
+    color: #666;
+    margin-bottom: 0.25rem;
+}
+
+.param-item input,
+.param-item select {
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 2px;
+    font-size: 0.9rem;
+}
+
+.param-item input:focus,
+.param-item select:focus {
+    outline: none;
+    border-color: #1a1a1a;
+}
+
+/* 产出表格 */
+.output-section {
+    background: #fff;
+    border: 1px solid #eee;
+    padding: 1.5rem;
+    border-radius: 4px;
+}
+
+.output-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 0.75rem;
+}
+
+.output-cell {
+    background: #fafafa;
+    padding: 0.75rem;
+    border-radius: 2px;
+    text-align: center;
+}
+
+.output-value {
+    font-size: 1.5rem;
+    font-weight: 500;
+    color: #1a1a1a;
+}
+
+.output-unit {
+    font-size: 0.7rem;
+    color: #888;
+}
+
+.output-label {
+    font-size: 0.7rem;
+    color: #666;
+    margin-top: 0.25rem;
+}
+
+/* 完整流程结果 */
+.full-result {
+    background: #1a1a1a;
+    color: #fff;
+    padding: 1.5rem;
+    border-radius: 4px;
+    margin-top: 1.5rem;
+}
+
+.full-result h3 {
+    font-size: 0.85rem;
+    font-weight: normal;
+    color: #999;
+    margin-bottom: 1rem;
+}
+
+.full-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: 1rem;
+}
+
+.full-item {
+    text-align: center;
+}
+
+.full-item .value {
+    font-size: 1.5rem;
+    font-weight: 500;
+}
+
+.full-item .label {
+    font-size: 0.7rem;
+    color: #888;
+    margin-top: 0.25rem;
+}
+
+/* 按钮 */
+.btn-primary {
+    background: #1a1a1a;
+    color: #fff;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 2px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    margin-top: 1rem;
+}
+
+.btn-primary:hover {
+    background: #333;
+}
+
+/* 引用 */
+.lit-ref {
+    font-size: 0.7rem;
+    color: #999;
+    font-style: italic;
+    margin-top: 1rem;
+}
+
+/* 两列布局 */
+.two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
+@media (max-width: 900px) {
+    .two-col {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* 响应式流程图 */
+@media (max-width: 768px) {
+    .process-flow {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    .flow-arrow {
+        display: none;
+    }
+    .stage-node {
+        margin: 0.5rem;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="process-container">
+    <div class="page-header">
+        <h1>五工序生产模拟</h1>
+        <p class="subtitle">基于原料量的镇江香醋生产计算</p>
+    </div>
+
+    <div class="process-flow">
+        <div class="stage-node">
+            <div class="stage-num">1</div>
+            <div class="stage-name">糖化</div>
+            <div class="stage-time">约60h</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="stage-node">
+            <div class="stage-num">2</div>
+            <div class="stage-name">酒精发酵</div>
+            <div class="stage-time">5-7天</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="stage-node">
+            <div class="stage-num">3</div>
+            <div class="stage-name">醋酸发酵</div>
+            <div class="stage-time">18-20天</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="stage-node">
+            <div class="stage-num">4</div>
+            <div class="stage-name">淋醋</div>
+            <div class="stage-time">12-24h</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="stage-node">
+            <div class="stage-num">5</div>
+            <div class="stage-name">陈酿</div>
+            <div class="stage-time">≥6月</div>
+        </div>
+    </div>
+
+    <div class="two-col">
+        <div>
+            <div class="param-section">
+                <div class="section-title">原料参数</div>
+                <div class="param-grid">
+                    <div class="param-item">
+                        <label>原料量 (kg)</label>
+                        <input type="number" id="raw_material_kg" value="100" min="1" max="10000">
+                    </div>
+                    <div class="param-item">
+                        <label>原料类型</label>
+                        <select id="raw_material_type">
+                            <option value="糯米" selected>糯米</option>
+                            <option value="大米">大米</option>
+                            <option value="高粱">高粱</option>
+                            <option value="小麦">小麦</option>
+                            <option value="玉米">玉米</option>
+                            <option value="苹果">苹果</option>
+                            <option value="葡萄">葡萄</option>
+                        </select>
+                    </div>
+                    <div class="param-item">
+                        <label>生产规模</label>
+                        <select id="scale_type">
+                            <option value="lab">实验室</option>
+                            <option value="pilot" selected>中试</option>
+                            <option value="production">生产</option>
+                        </select>
+                    </div>
+                    <div class="param-item">
+                        <label>加水比 (米:水)</label>
+                        <input type="number" id="water_ratio" value="3.0" min="1" max="5" step="0.1">
+                    </div>
+                </div>
+            </div>
+
+            <div class="param-section">
+                <div class="section-title">发酵参数</div>
+                <div class="param-grid">
+                    <div class="param-item">
+                        <label>酒精发酵 (天)</label>
+                        <input type="number" id="alcohol_days" value="6" min="1" max="15">
+                    </div>
+                    <div class="param-item">
+                        <label>AAF发酵 (天)</label>
+                        <input type="number" id="aaf_days" value="18" min="1" max="25">
+                    </div>
+                    <div class="param-item">
+                        <label>AAF翻醅次数</label>
+                        <select id="aaf_turnover_times">
+                            <option value="0">不翻醅</option>
+                            <option value="1">偶尔翻醅</option>
+                            <option value="2" selected>正常翻醅</option>
+                            <option value="3">频繁翻醅</option>
+                        </select>
+                    </div>
+                    <div class="param-item">
+                        <label>淋醋加水比</label>
+                        <input type="number" id="leaching_water_ratio" value="1.5" min="0.5" max="3" step="0.1">
+                    </div>
+                </div>
+            </div>
+
+            <div class="param-section">
+                <div class="section-title">陈酿参数</div>
+                <div class="param-grid">
+                    <div class="param-item">
+                        <label>陈酿月数</label>
+                        <input type="number" id="aging_months" value="60" min="0" max="120">
+                    </div>
+                    <div class="param-item">
+                        <label>陈酿容器</label>
+                        <select id="aging_vessel">
+                            <option value="陶缸" selected>陶缸</option>
+                            <option value="不锈钢">不锈钢</option>
+                        </select>
+                    </div>
+                    <div class="param-item">
+                        <label>陈酿温度</label>
+                        <select id="aging_temperature">
+                            <option value="低温">低温 (10-15°C)</option>
+                            <option value="常温" selected>常温 (20-25°C)</option>
+                            <option value="高温">高温 (30-35°C)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <button class="btn-primary" onclick="calculateProcess()">计算产出</button>
+
+            <div class="lit-ref">
+                化学计量依据: 淀粉→葡萄糖(1.11), 葡萄糖→乙醇(0.51), 乙醇→乙酸(1.30)<br>
+                文献: 薛茂云(2018), 丁乾坤(2019), 王超(2020), 任晓荣(2023)
+            </div>
+        </div>
+
+        <div>
+            <div class="output-section">
+                <div class="section-title">糖化阶段产出</div>
+                <div class="output-grid">
+                    <div class="output-cell">
+                        <div class="output-value" id="sac_glucose_kg">--</div>
+                        <div class="output-label">葡萄糖 (kg)</div>
+                    </div>
+                    <div class="output-cell">
+                        <div class="output-value" id="sac_glucose_conc">--</div>
+                        <div class="output-label">浓度 (g/L)</div>
+                    </div>
+                    <div class="output-cell">
+                        <div class="output-value" id="sac_volume">--</div>
+                        <div class="output-label">醪液体积 (L)</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="output-section" style="margin-top: 1rem;">
+                <div class="section-title">酒精发酵产出</div>
+                <div class="output-grid">
+                    <div class="output-cell">
+                        <div class="output-value" id="alc_ethanol_kg">--</div>
+                        <div class="output-label">乙醇 (kg)</div>
+                    </div>
+                    <div class="output-cell">
+                        <div class="output-value" id="alc_ethanol_pct">--</div>
+                        <div class="output-label">乙醇浓度 (%)</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="output-section" style="margin-top: 1rem;">
+                <div class="section-title">醋酸发酵产出</div>
+                <div class="output-grid">
+                    <div class="output-cell">
+                        <div class="output-value" id="aaf_acetic_kg">--</div>
+                        <div class="output-label">乙酸 (kg)</div>
+                    </div>
+                    <div class="output-cell">
+                        <div class="output-value" id="aaf_total_acid_kg">--</div>
+                        <div class="output-label">总酸 (kg)</div>
+                    </div>
+                    <div class="output-cell">
+                        <div class="output-value" id="aaf_conc">--</div>
+                        <div class="output-label">总酸浓度 (g/L)</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="full-result">
+                <h3>最终成品醋</h3>
+                <div class="full-grid">
+                    <div class="full-item">
+                        <div class="value" id="final_vinegar_L">--</div>
+                        <div class="label">成品醋 (L)</div>
+                    </div>
+                    <div class="full-item">
+                        <div class="value" id="final_acid">--</div>
+                        <div class="label">总酸 (g/L)</div>
+                    </div>
+                    <div class="full-item">
+                        <div class="value" id="final_ethyl">--</div>
+                        <div class="label">乙酸乙酯 (mg/L)</div>
+                    </div>
+                    <div class="full-item">
+                        <div class="value" id="final_tmp">--</div>
+                        <div class="label">四甲基吡嗪</div>
+                    </div>
+                    <div class="full-item">
+                        <div class="value" id="final_score">--</div>
+                        <div class="label">评分</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function calculateProcess() {
+    const raw_material_kg = document.getElementById('raw_material_kg').value;
+    const raw_material_type = document.getElementById('raw_material_type').value;
+    const scale_type = document.getElementById('scale_type').value;
+    const water_ratio = document.getElementById('water_ratio').value;
+    const alcohol_days = document.getElementById('alcohol_days').value;
+    const aaf_days = document.getElementById('aaf_days').value;
+    const aaf_turnover_times = document.getElementById('aaf_turnover_times').value;
+    const leaching_water_ratio = document.getElementById('leaching_water_ratio').value;
+    const aging_months = document.getElementById('aging_months').value;
+    const aging_vessel = document.getElementById('aging_vessel').value;
+    const aging_temperature = document.getElementById('aging_temperature').value;
+
+    const url = `/api/material?raw_material_kg=${raw_material_kg}&raw_material_type=${raw_material_type}&scale_type=${scale_type}&water_ratio=${water_ratio}&alcohol_days=${alcohol_days}&aaf_days=${aaf_days}&aaf_turnover_times=${aaf_turnover_times}&leaching_water_ratio=${leaching_water_ratio}&aging_months=${aging_months}&aging_vessel=${aging_vessel}&aging_temperature=${aging_temperature}`;
+
+    try {
+        const response = await fetch(url);
+        const data = await response.json();
+
+        // 糖化阶段
+        document.getElementById('sac_glucose_kg').textContent = data.stages.saccharification.glucose_kg.toFixed(1);
+        document.getElementById('sac_glucose_conc').textContent = data.stages.saccharification.glucose_conc_gL.toFixed(1);
+        document.getElementById('sac_volume').textContent = data.stages.saccharification.volume_L.toFixed(1);
+
+        // 酒精发酵
+        document.getElementById('alc_ethanol_kg').textContent = data.stages.alcohol.ethanol_kg.toFixed(1);
+        document.getElementById('alc_ethanol_pct').textContent = data.stages.alcohol.ethanol_conc_pct.toFixed(1);
+
+        // AAF
+        document.getElementById('aaf_acetic_kg').textContent = data.stages.aaf.acetic_acid_kg.toFixed(1);
+        document.getElementById('aaf_total_acid_kg').textContent = data.stages.aaf.total_acid_kg.toFixed(1);
+        document.getElementById('aaf_conc').textContent = data.stages.aaf.total_acid_conc_gL.toFixed(1);
+
+        // 最终成品
+        document.getElementById('final_vinegar_L').textContent = data.final.vinegar_L;
+        document.getElementById('final_acid').textContent = data.final.total_acid_gL;
+        document.getElementById('final_ethyl').textContent = data.final.ethyl_acetate_mgL;
+        document.getElementById('final_tmp').textContent = data.final.tmp_mgL;
+        document.getElementById('final_score').textContent = data.final.overall_score;
+
+    } catch (error) {
+        console.error('Error:', error);
+        alert('计算失败，请检查输入参数');
+    }
+}
+
+// 初始化计算
+calculateProcess();
+</script>
+{% endblock %}

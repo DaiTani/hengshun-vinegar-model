@@ -232,6 +232,80 @@ def predict_at_age(state: VinegarState, target_months: float) -> VinegarState:
     return out
 
 
+def age_from_composition(
+    total_acid_g100mL: float,
+    ethyl_acetate_mgL: float,
+    tmp_mgL: float,
+    acetic_acid_g100mL: float,
+    months: float,
+    process: str = "固态发酵",
+    raw_material: str = "糯米",
+    craft_style: str = "传统"
+) -> VinegarState:
+    """
+    基于实际AAF产出的陈酿预测
+
+    参数:
+        total_acid_g100mL: 淋醋后总酸浓度 (g/100mL)
+        ethyl_acetate_mgL: 淋醋后乙酸乙酯浓度 (mg/L)
+        tmp_mgL: 淋醋后四甲基吡嗪浓度 (mg/L)
+        acetic_acid_g100mL: 淋醋后乙酸浓度 (g/100mL)
+        months: 陈酿月数
+        process: 发酵类型
+        raw_material: 原料类型
+        craft_style: 工艺风格
+
+    返回:
+        VinegarState: 陈酿后的状态
+    """
+    t = max(0.0, months)
+
+    # 标准基准值 (month 0)
+    ref_0 = age_to_state(0, process=process, raw_material=raw_material, craft_style=craft_style)
+    ref_t = age_to_state(t, process=process, raw_material=raw_material, craft_style=craft_style)
+
+    # 计算实际起点与基准的比例
+    scale_total_acid = total_acid_g100mL / ref_0.total_acid if ref_0.total_acid > 0 else 1.0
+    scale_ethyl = ethyl_acetate_mgL / ref_0.ethyl_acetate if ref_0.ethyl_acetate > 0 else 1.0
+    scale_tmp = tmp_mgL / ref_0.tmp if ref_0.tmp > 0 else 1.0
+    scale_acetic = acetic_acid_g100mL / ref_0.acetic_acid if ref_0.acetic_acid > 0 else 1.0
+
+    # 使用比例因子缩放陈酿曲线
+    # 同时考虑实际起点与基准的偏差
+    out = VinegarState(**asdict(ref_t))
+
+    # 总酸: 基于比例缩放
+    out.total_acid = ref_t.total_acid * scale_total_acid
+
+    # 乙酸乙酯: 基于比例缩放
+    out.ethyl_acetate = ref_t.ethyl_acetate * scale_ethyl
+
+    # 四甲基吡嗪: 基于比例缩放
+    out.tmp = ref_t.tmp * scale_tmp
+
+    # 乙酸: 基于比例缩放
+    out.acetic_acid = ref_t.acetic_acid * scale_acetic
+
+    # 其他参数保持标准曲线
+    out.non_volatile_acid = ref_t.non_volatile_acid
+    out.reducing_sugar = ref_t.reducing_sugar
+    out.total_amino_acid = ref_t.total_amino_acid
+    out.ph = ref_t.ph
+
+    # 确保在合法区间
+    for f in PARAMETER_RANGES:
+        if f == "vinegar_age_months":
+            continue
+        setattr(out, f, clamp(f, getattr(out, f)))
+
+    out.vinegar_age_months = t
+    out.process = process
+    out.raw_material = raw_material
+    out.craft_style = craft_style
+
+    return out
+
+
 def predict_trajectory(months_list: List[float],
                        process: str = "固态发酵",
                        raw_material: str = "糯米",
