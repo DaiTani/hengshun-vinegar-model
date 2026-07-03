@@ -5,18 +5,22 @@ vinegar_model
 
 核心能力
 --------
-1. AAF发酵动力学 (aaf_kinetics):
+1. 五工序生产模型 (process_model):
+   原料糖化 → 酒精发酵 → 醋酸发酵 → 淋醋 → 陈酿
+   完整追踪从原料到成品醋的生产流程
+
+2. AAF发酵动力学 (aaf_kinetics):
    基于王超(2020)数据的Logistic拟合，R²=0.998
    用于发酵过程监测与翻醅建议
 
-2. 陈酿动力学 (aging_kinetics):
+3. 陈酿动力学 (aging_kinetics):
    基于任晓荣(2023)等实测数据的Logistic曲线拟合
    用于预测任意陈酿时间的风味组成
 
-3. 风味映射 (flavor_radar):
+4. 风味映射 (flavor_radar):
    8维理化指标 -> 6维风味雷达 + 14维感官评分 + 综合评分
 
-4. REST API:
+5. REST API:
    基于Flask的轻量接口,JSON格式输入/输出
 
 文献依据
@@ -43,24 +47,43 @@ from .craft_effect import (
     PROCESS_FACTORS, MATERIAL_FACTORS,
 )
 from .process_model import (
-    AAFState, inspect_aaF_state, recommend_turning, next_dynamics_step,
+    VinegarProductionModel,
+    SaccharificationModel,
+    AlcoholFermentationModel,
+    LeachingModel,
+    ProductionState,
+    SaccharificationState,
+    AlcoholFermentationState,
+    AAFState,
+    LeachingState,
+    inspect_aaF_state,
+    recommend_turning,
+    next_dynamics_step,
 )
 from .hybrid_model import HybridVinegarModel
 
-__version__ = "1.0.0"
+__version__ = "2.0.0"
 
 __all__ = [
+    # 五工序模型
+    "VinegarProductionModel",
+    "SaccharificationModel",
+    "AlcoholFermentationModel",
+    "LeachingModel",
+    "ProductionState",
+    "SaccharificationState",
+    "AlcoholFermentationState",
+    "AAFState",
+    "LeachingState",
+    # AAF与陈酿模型
     "AAFModel",
     "AAFKinetics",
-    "AAFState",
     "HybridVinegarModel",
     "age_to_state",
     "predict_trajectory",
     "predict_at_age",
     "AGE_FUNCTIONS",
-    "inspect_aaF_state",
-    "recommend_turning",
-    "next_dynamics_step",
+    # 风味映射
     "VinegarState",
     "FlavorProfile",
     "SensoryScore",
@@ -70,8 +93,13 @@ __all__ = [
     "compute_ph_profile",
     "compute_overall_score",
     "radar_chart",
+    # 工艺修正
     "apply_craft_effect",
     "craft_summary",
     "PROCESS_FACTORS",
     "MATERIAL_FACTORS",
+    # 兼容接口
+    "inspect_aaF_state",
+    "recommend_turning",
+    "next_dynamics_step",
 ]

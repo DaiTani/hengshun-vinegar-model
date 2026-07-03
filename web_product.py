@@ -9,7 +9,7 @@ from vinegar_model.flavor_radar import (
     compute_sensory_score, compute_overall_score
 )
 from vinegar_model.aging_kinetics import age_to_state, predict_trajectory
-from vinegar_model.process_model import recommend_turning
+from vinegar_model.process_model import recommend_turning, VinegarProductionModel
 from vinegar_model.aaf_kinetics import AAFModel
 
 app = Flask(__name__)
@@ -186,6 +186,36 @@ def api_trajectory():
         result['overall'].append(round(compute_overall_score(state, profile), 2))
     
     return jsonify(result)
+
+
+@app.route('/api/process', methods=['GET'])
+def api_process():
+    model = VinegarProductionModel()
+
+    state = model.simulate_full_process(
+        raw_material=request.args.get('raw_material', '糯米'),
+        saccharification_hours=float(request.args.get('saccharification_hours', 60)),
+        saccharification_temp=float(request.args.get('saccharification_temp', 62)),
+        alcohol_fermentation_days=float(request.args.get('alcohol_days', 6)),
+        alcohol_temp=float(request.args.get('alcohol_temp', 30)),
+        aaf_days=float(request.args.get('aaf_days', 18)),
+        water_ratio=float(request.args.get('water_ratio', 1.0)),
+        leaching_time=float(request.args.get('leaching_time', 16)),
+        aging_months=float(request.args.get('aging_months', 60)),
+    )
+
+    summary = model.get_stage_summary(state)
+
+    return jsonify({
+        'summary': summary,
+        'detail': {
+            'saccharification': state.saccharification.as_dict(),
+            'alcohol_fermentation': state.alcohol_fermentation.as_dict(),
+            'aaf': state.aaf.as_dict(),
+            'leaching': state.leaching.as_dict(),
+            'vinegar_age_months': state.vinegar_age_months,
+        }
+    })
 
 
 if __name__ == '__main__':
