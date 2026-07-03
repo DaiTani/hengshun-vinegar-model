@@ -157,106 +157,110 @@ function switchChart(btn, type) {
 }
 
 function updateFermentChart(type) {
-    if (!simulationData) return;
-
-    // Sample every N points for display (200 points -> ~20 display points)
-    const step = Math.max(1, Math.floor(simulationData.time.length / 20));
-    const displayIndices = [];
-    for (let i = 0; i < simulationData.time.length; i += step) {
-        displayIndices.push(i);
+    if (!simulationData) {
+        console.log('updateFermentChart: simulationData is null');
+        return;
     }
 
-    // Use full data for chart, but sampled labels
-    const labels = displayIndices.map(i => simulationData.time[i].toFixed(0));
+    // Use time as labels (integers)
+    const labels = simulationData.time.map(t => Math.round(t));
     let datasets = [];
-    const currentDay = parseInt(document.getElementById('ferment_day').value);
-
-    // Helper to sample data array
-    const sampleData = (arr) => displayIndices.map(i => arr[i]);
 
     if (type === 'acid') {
-        datasets = [
-            {
-                label: '总酸',
-                data: sampleData(simulationData.total_acid),
-                borderColor: '#E74C3C',
-                backgroundColor: 'rgba(231, 76, 60, 0.1)',
-            },
-            {
-                label: '乙酸',
-                data: sampleData(simulationData.acetic_acid),
-                borderColor: '#3498DB',
-                backgroundColor: 'rgba(52, 152, 219, 0.1)',
-            }
-        ];
+        datasets = [{
+            label: '总酸',
+            data: simulationData.total_acid,
+            borderColor: '#E74C3C',
+            backgroundColor: 'rgba(231, 76, 60, 0.1)',
+            fill: true,
+            tension: 0.4,
+            pointRadius: 2,
+        }, {
+            label: '乙酸',
+            data: simulationData.acetic_acid,
+            borderColor: '#3498DB',
+            backgroundColor: 'rgba(52, 152, 219, 0.1)',
+            fill: true,
+            tension: 0.4,
+            pointRadius: 2,
+        }];
     } else if (type === 'oxygen') {
-        datasets = [
-            {
-                label: '上层氧气',
-                data: sampleData(simulationData.oxygen_upper),
-                borderColor: '#3498DB',
-                backgroundColor: 'rgba(52, 152, 219, 0.1)',
-            },
-            {
-                label: '下层氧气',
-                data: sampleData(simulationData.oxygen_lower),
-                borderColor: '#E74C3C',
-                backgroundColor: 'rgba(231, 76, 60, 0.1)',
-            }
-        ];
+        datasets = [{
+            label: '上层氧气',
+            data: simulationData.oxygen_upper,
+            borderColor: '#3498DB',
+            backgroundColor: 'rgba(52, 152, 219, 0.1)',
+            fill: true,
+            tension: 0.4,
+            pointRadius: 2,
+        }, {
+            label: '下层氧气',
+            data: simulationData.oxygen_lower,
+            borderColor: '#E74C3C',
+            backgroundColor: 'rgba(231, 76, 60, 0.1)',
+            fill: true,
+            tension: 0.4,
+            pointRadius: 2,
+        }];
     } else if (type === 'bacteria') {
-        datasets = [
-            {
-                label: '醋酸菌',
-                data: sampleData(simulationData.ab_growth),
-                borderColor: '#27AE60',
-                backgroundColor: 'rgba(39, 174, 96, 0.1)',
-            }
-        ];
+        datasets = [{
+            label: '醋酸菌',
+            data: simulationData.ab_growth,
+            borderColor: '#27AE60',
+            backgroundColor: 'rgba(39, 174, 96, 0.1)',
+            fill: true,
+            tension: 0.4,
+            pointRadius: 2,
+        }];
     }
 
+    // Destroy existing chart
     if (fermentChart) {
         fermentChart.destroy();
     }
 
     const ctx = document.getElementById('fermentChart').getContext('2d');
-    fermentChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: labels,
-            datasets: datasets.map(ds => ({
-                ...ds,
-                fill: true,
-                tension: 0.4,
-                pointRadius: 3,
-                pointHoverRadius: 5,
-            }))
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            interaction: {
-                mode: 'index',
-                intersect: false,
+    if (!ctx) {
+        console.log('updateFermentChart: canvas context not found');
+        return;
+    }
+
+    try {
+        fermentChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: datasets
             },
-            scales: {
-                x: {
-                    title: { display: true, text: '天数', font: { size: 12 } },
-                    ticks: { font: { size: 10 } }
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
                 },
-                y: {
-                    title: { display: true, text: type === 'acid' ? 'g/100mL' : type === 'oxygen' ? '%' : '相对量', font: { size: 12 } },
-                    ticks: { font: { size: 10 } }
-                }
-            },
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: { font: { size: 10 }, boxWidth: 12 }
+                scales: {
+                    x: {
+                        title: { display: true, text: '天数' },
+                        ticks: { maxTicksLimit: 10 }
+                    },
+                    y: {
+                        title: { display: true, text: type === 'acid' ? 'g/100mL' : type === 'oxygen' ? '%' : '相对量' },
+                        beginAtZero: true
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { boxWidth: 12 }
+                    }
                 }
             }
-        }
-    });
+        });
+        console.log('Chart created successfully');
+    } catch (e) {
+        console.log('Chart creation error:', e);
+    }
 }
 
 window.addEventListener('DOMContentLoaded', function() {
