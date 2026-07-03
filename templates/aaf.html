@@ -38,9 +38,9 @@
             <div class="result-section">
                 <h2>发酵动力学曲线</h2>
                 <div class="chart-tabs">
-                    <button class="tab-btn active" onclick="showChart('acid')">酸度变化</button>
-                    <button class="tab-btn" onclick="showChart('oxygen')">氧气消耗</button>
-                    <button class="tab-btn" onclick="showChart('bacteria')">菌体生长</button>
+                    <button class="tab-btn active" data-chart="acid" onclick="switchChart(this, 'acid')">酸度变化</button>
+                    <button class="tab-btn" data-chart="oxygen" onclick="switchChart(this, 'oxygen')">氧气消耗</button>
+                    <button class="tab-btn" data-chart="bacteria" onclick="switchChart(this, 'bacteria')">菌体生长</button>
                 </div>
                 <div class="chart-container">
                     <canvas id="fermentChart"></canvas>
@@ -104,6 +104,7 @@ let simulationData = null;
 
 document.getElementById('ferment_day').addEventListener('input', function() {
     document.getElementById('ferment_day_value').textContent = this.value;
+    analyzeFermentation();
 });
 
 function analyzeFermentation() {
@@ -148,31 +149,42 @@ function updateFermentationState(data) {
     reasonsEl.innerHTML = turning.warnings.map(w => '<li>' + w + '</li>').join('');
 }
 
-function showChart(type) {
+function switchChart(btn, type) {
     currentChartType = type;
-    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-    event.target.classList.add('active');
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
     updateFermentChart(type);
 }
 
 function updateFermentChart(type) {
     if (!simulationData) return;
-    
-    const labels = simulationData.time.map(t => t.toFixed(1));
+
+    // Sample every N points for display (200 points -> ~20 display points)
+    const step = Math.max(1, Math.floor(simulationData.time.length / 20));
+    const displayIndices = [];
+    for (let i = 0; i < simulationData.time.length; i += step) {
+        displayIndices.push(i);
+    }
+
+    // Use full data for chart, but sampled labels
+    const labels = displayIndices.map(i => simulationData.time[i].toFixed(0));
     let datasets = [];
     const currentDay = parseInt(document.getElementById('ferment_day').value);
-    
+
+    // Helper to sample data array
+    const sampleData = (arr) => displayIndices.map(i => arr[i]);
+
     if (type === 'acid') {
         datasets = [
             {
                 label: '总酸',
-                data: simulationData.total_acid,
+                data: sampleData(simulationData.total_acid),
                 borderColor: '#E74C3C',
                 backgroundColor: 'rgba(231, 76, 60, 0.1)',
             },
             {
                 label: '乙酸',
-                data: simulationData.acetic_acid,
+                data: sampleData(simulationData.acetic_acid),
                 borderColor: '#3498DB',
                 backgroundColor: 'rgba(52, 152, 219, 0.1)',
             }
@@ -181,13 +193,13 @@ function updateFermentChart(type) {
         datasets = [
             {
                 label: '上层氧气',
-                data: simulationData.oxygen_upper,
+                data: sampleData(simulationData.oxygen_upper),
                 borderColor: '#3498DB',
                 backgroundColor: 'rgba(52, 152, 219, 0.1)',
             },
             {
                 label: '下层氧气',
-                data: simulationData.oxygen_lower,
+                data: sampleData(simulationData.oxygen_lower),
                 borderColor: '#E74C3C',
                 backgroundColor: 'rgba(231, 76, 60, 0.1)',
             }
@@ -196,17 +208,17 @@ function updateFermentChart(type) {
         datasets = [
             {
                 label: '醋酸菌',
-                data: simulationData.ab_growth,
+                data: sampleData(simulationData.ab_growth),
                 borderColor: '#27AE60',
                 backgroundColor: 'rgba(39, 174, 96, 0.1)',
             }
         ];
     }
-    
+
     if (fermentChart) {
         fermentChart.destroy();
     }
-    
+
     const ctx = document.getElementById('fermentChart').getContext('2d');
     fermentChart = new Chart(ctx, {
         type: 'line',
@@ -216,8 +228,8 @@ function updateFermentChart(type) {
                 ...ds,
                 fill: true,
                 tension: 0.4,
-                pointRadius: 0,
-                pointHoverRadius: 4,
+                pointRadius: 3,
+                pointHoverRadius: 5,
             }))
         },
         options: {
@@ -241,23 +253,6 @@ function updateFermentChart(type) {
                 legend: {
                     position: 'bottom',
                     labels: { font: { size: 10 }, boxWidth: 12 }
-                },
-                annotation: {
-                    annotations: {
-                        line1: {
-                            type: 'line',
-                            xMin: currentDay,
-                            xMax: currentDay,
-                            borderColor: '#F39C12',
-                            borderWidth: 2,
-                            borderDash: [5, 5],
-                            label: {
-                                display: true,
-                                content: '当前',
-                                position: 'start'
-                            }
-                        }
-                    }
                 }
             }
         }
