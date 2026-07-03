@@ -110,17 +110,24 @@ document.getElementById('ferment_day').addEventListener('input', function() {
 function analyzeFermentation() {
     const day = document.getElementById('ferment_day').value;
     document.getElementById('currentDay').textContent = day;
-    
+
+    console.log('Fetching API data for day:', day);
+
     fetch('/api/aaf?day=' + day)
-        .then(response => response.json())
+        .then(response => {
+            console.log('Response status:', response.status);
+            return response.json();
+        })
         .then(data => {
+            console.log('API data received:', data);
             updateFermentationState(data);
             if (!simulationData) {
                 simulationData = data.simulation;
+                console.log('simulationData set:', simulationData);
             }
             updateFermentChart(currentChartType);
         })
-        .catch(error => console.error('Error:', error));
+        .catch(error => console.error('Fetch error:', error));
 }
 
 function updateFermentationState(data) {
@@ -220,10 +227,16 @@ function updateFermentChart(type) {
     }
 
     const ctx = document.getElementById('fermentChart').getContext('2d');
+    console.log('Canvas context:', ctx);
+
     if (!ctx) {
-        console.log('updateFermentChart: canvas context not found');
+        console.log('ERROR: canvas context not found');
         return;
     }
+
+    console.log('Creating chart with', labels.length, 'labels,', datasets.length, 'datasets');
+    console.log('Labels sample:', labels.slice(0, 5));
+    console.log('Dataset 0 sample:', datasets[0]?.data?.slice(0, 5));
 
     try {
         fermentChart = new Chart(ctx, {
