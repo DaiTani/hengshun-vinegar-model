@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+
+{% block title %}糖化过程 - 醋风味监测系统{% endblock %}
+
+{% block content %}
+<div class="container sac-page">
+    <header class="page-header sac-heading">
+        <span class="sac-eyebrow">SACCHARIFICATION PROCESS</span>
+        <h1>糖化过程智能监测</h1>
+        <p class="subtitle">基于原料、温度与时间参数，模拟淀粉酶解和还原糖释放过程</p>
+    </header>
+
+    <section class="sac-flow" aria-label="糖化工艺流程">
+        <div class="sac-step active" data-step="0"><span>01</span><div><strong>蒸煮糊化</strong><small>淀粉充分糊化</small></div></div>
+        <i>→</i>
+        <div class="sac-step" data-step="1"><span>02</span><div><strong>降温拌曲</strong><small>接入糖化菌曲</small></div></div>
+        <i>→</i>
+        <div class="sac-step" data-step="2"><span>03</span><div><strong>酶解糖化</strong><small>淀粉链持续水解</small></div></div>
+        <i>→</i>
+        <div class="sac-step" data-step="3"><span>04</span><div><strong>还原糖释放</strong><small>糖度快速增长</small></div></div>
+        <i>→</i>
+        <div class="sac-step" data-step="4"><span>05</span><div><strong>糖化完成</strong><small>转化率趋于稳定</small></div></div>
+    </section>
+
+    <div class="sac-layout">
+        <aside class="card sac-controls">
+            <div class="sac-card-head">
+                <div><span class="sac-kicker">工艺输入</span><h2>糖化参数</h2></div>
+                <span class="sac-online"><b></b> 模型在线</span>
+            </div>
+
+            <label class="sac-select" for="raw_material">
+                <span>原料类型</span>
+                <select id="raw_material">
+                    <option value="糯米" selected>糯米</option>
+                    <option value="大米">大米</option>
+                    <option value="高粱">高粱</option>
+                    <option value="麦芽">麦芽</option>
+                </select>
+            </label>
+
+            <div class="sac-range-block">
+                <label for="saccharification_hours"><span>糖化时间</span><strong><em id="hoursValue">1.0</em> h</strong></label>
+                <input type="range" id="saccharification_hours" min="0" max="6" value="1" step="0.1">
+                <div><span>0h</span><span>最佳 1h</span><span>6h</span></div>
+            </div>
+
+            <div class="sac-range-block">
+                <label for="saccharification_temperature"><span>糖化温度</span><strong><em id="temperatureValue">60</em> °C</strong></label>
+                <input type="range" id="saccharification_temperature" min="45" max="70" value="60" step="1">
+                <div><span>45°C</span><span>适宜 58-62°C</span><span>70°C</span></div>
+            </div>
+
+            <button class="btn-primary sac-analyze" type="button" onclick="analyzeSaccharification()">更新糖化分析</button>
+
+            <section class="sac-guidance">
+                <div class="sac-guidance-title"><span>⌁</span><div><small>智能加工反馈</small><h3>糖化工艺建议</h3></div></div>
+                <div class="sac-status" id="sacStatus"><b></b><span>正在计算...</span></div>
+                <ul id="sacRecommendations"></ul>
+            </section>
+        </aside>
+
+        <main class="card sac-monitor">
+            <div class="sac-monitor-head">
+                <div><span class="sac-kicker">实时结果</span><h2 id="sacStage">酶解糖化阶段</h2></div>
+                <div class="sac-progress"><strong id="conversionSummary">--</strong><span>淀粉转化率</span></div>
+            </div>
+            <div class="sac-progress-track"><span id="conversionBar"></span></div>
+
+            <div class="sac-metrics">
+                <article class="sac-metric featured"><span>还原糖</span><strong id="reducingSugar">--</strong><small>g/100mL</small></article>
+                <article class="sac-metric"><span>淀粉转化率</span><strong id="conversionRate">--</strong><small>%</small></article>
+                <article class="sac-metric"><span>当前温度</span><strong id="currentTemperature">--</strong><small>°C</small></article>
+                <article class="sac-metric"><span>糖化时长</span><strong id="currentHours">--</strong><small>小时</small></article>
+            </div>
+
+            <section class="sac-chart-section">
+                <div class="sac-chart-head">
+                    <div><span class="sac-kicker">动力学趋势</span><h2>糖化过程曲线</h2></div>
+                    <div class="chart-tabs">
+                        <button class="tab-btn active" onclick="switchSacChart(this, 'sugar')">还原糖</button>
+                        <button class="tab-btn" onclick="switchSacChart(this, 'conversion')">转化率</button>
+                    </div>
+                </div>
+                <div class="chart-container sac-chart"><canvas id="saccharificationChart"></canvas></div>
+            </section>
+        </main>
+    </div>
+
+    <section class="sac-evidence">
+        <div><span>模型依据</span><strong>一级反应动力学 + Arrhenius 温度修正</strong></div>
+        <div><span>最佳工艺参考</span><strong>60°C 糖化 60 min</strong></div>
+        <div><span>验证范围</span><strong>还原糖 3.6-5.8 g/100mL</strong></div>
+    </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let sacChart = null;
+let sacChartType = 'sugar';
+let sacTrajectory = null;
+
+const hoursInput = document.getElementById('saccharification_hours');
+const temperatureInput = document.getElementById('saccharification_temperature');
+hoursInput.addEventListener('input', () => { document.getElementById('hoursValue').textContent = Number(hoursInput.value).toFixed(1); });
+temperatureInput.addEventListener('input', () => { document.getElementById('temperatureValue').textContent = temperatureInput.value; });
+
+function analyzeSaccharification() {
+    const params = new URLSearchParams({
+        hours: hoursInput.value,
+        temperature: temperatureInput.value,
+        raw_material: document.getElementById('raw_material').value
+    });
+    fetch('/api/saccharification?' + params.toString())
+        .then(response => response.json())
+        .then(data => {
+            sacTrajectory = data.trajectory;
+            updateSaccharificationState(data);
+            renderSacChart();
+        })
+        .catch(() => {
+            document.getElementById('sacStatus').innerHTML = '<b class="warning"></b><span>数据读取失败，请重试</span>';
+        });
+}
+
+function updateSaccharificationState(data) {
+    const output = data.output;
+    const conversion = output.starch_conversion_rate * 100;
+    document.getElementById('reducingSugar').textContent = Number(output.reducing_sugar).toFixed(2);
+    document.getElementById('conversionRate').textContent = conversion.toFixed(1);
+    document.getElementById('conversionSummary').textContent = conversion.toFixed(1) + '%';
+    document.getElementById('conversionBar').style.width = Math.min(conversion / 88 * 100, 100) + '%';
+    document.getElementById('currentTemperature').textContent = Number(output.temperature).toFixed(0);
+    document.getElementById('currentHours').textContent = Number(output.duration_hours).toFixed(1);
+
+    const normalized = Math.min(conversion / 88 * 100, 100);
+    const activeStep = normalized >= 95 ? 4 : normalized >= 72 ? 3 : normalized >= 35 ? 2 : normalized >= 10 ? 1 : 0;
+    const stageNames = ['蒸煮糊化阶段', '降温拌曲阶段', '酶解糖化阶段', '还原糖释放阶段', '糖化完成'];
+    document.getElementById('sacStage').textContent = stageNames[activeStep];
+    document.querySelectorAll('.sac-step').forEach((step, index) => {
+        step.classList.toggle('active', index === activeStep);
+        step.classList.toggle('complete', index < activeStep);
+    });
+
+    const status = document.getElementById('sacStatus');
+    status.innerHTML = data.guidance.level === 'good'
+        ? '<b></b><span>工艺参数正常</span>'
+        : '<b class="warning"></b><span>建议调整工艺参数</span>';
+    document.getElementById('sacRecommendations').innerHTML = data.guidance.recommendations
+        .map(item => '<li>' + item + '</li>').join('');
+}
+
+function switchSacChart(button, type) {
+    sacChartType = type;
+    document.querySelectorAll('.sac-chart-head .tab-btn').forEach(item => item.classList.remove('active'));
+    button.classList.add('active');
+    renderSacChart();
+}
+
+function renderSacChart() {
+    if (!sacTrajectory) return;
+    const isSugar = sacChartType === 'sugar';
+    if (sacChart) sacChart.destroy();
+    sacChart = new Chart(document.getElementById('saccharificationChart').getContext('2d'), {
+        type: 'line',
+        data: {
+            labels: sacTrajectory.time,
+            datasets: [{
+                label: isSugar ? '还原糖' : '淀粉转化率',
+                data: isSugar ? sacTrajectory.reducing_sugar : sacTrajectory.conversion_rate,
+                borderColor: isSugar ? '#D87824' : '#2D7A68',
+                backgroundColor: isSugar ? 'rgba(216,120,36,.13)' : 'rgba(45,122,104,.12)',
+                fill: true,
+                tension: .36,
+                pointRadius: 0,
+                borderWidth: 2.5
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            scales: {
+                x: { grid: { display: false }, ticks: { maxTicksLimit: 8 }, title: { display: true, text: '糖化时间 (h)' } },
+                y: { beginAtZero: false, grid: { color: '#EEF1F5' }, title: { display: true, text: isSugar ? 'g/100mL' : '%' } }
+            },
+            plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } } }
+        }
+    });
+}
+
+window.addEventListener('DOMContentLoaded', analyzeSaccharification);
+</script>
+{% endblock %}

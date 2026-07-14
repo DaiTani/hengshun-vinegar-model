@@ -373,26 +373,40 @@ def api_material():
 
 @app.route('/api/saccharification', methods=['GET'])
 def api_saccharification():
-    """原料糖化工序模拟"""
+    """
+    原料糖化工序模拟 API
+
+    基于一级反应动力学 + Arrhenius温度修正
+
+    参数:
+        hours: 糖化时间 (小时), 默认1.0
+        temperature: 糖化温度 (°C), 默认60
+        pH: pH值, 默认4.25
+        raw_material: 原料类型, 默认糯米
+
+    返回:
+        JSON: 包含输入参数、输出状态、轨迹数据、工艺建议
+    """
     model = VinegarProductionModel()
     hours = float(request.args.get('hours', 1.0))
     temp = float(request.args.get('temperature', 60.0))
+    pH = float(request.args.get('pH', 4.25))
     raw_material = request.args.get('raw_material', '糯米')
 
-    state = model.saccharification.get_state_at(hours, temp, raw_material)
+    state = model.saccharification.get_state_at(hours, temp, pH, raw_material)
+    trajectory = model.saccharification.simulate_trajectory(max_hours=6.0, temperature=temp, pH=pH, raw_material=raw_material)
+    guidance = model.saccharification.get_guidance(hours, temp, pH, raw_material)
 
     return jsonify({
         'input': {
             'hours': hours,
             'temperature': temp,
+            'pH': pH,
             'raw_material': raw_material,
         },
-        'output': {
-            'reducing_sugar': state.reducing_sugar,
-            'starch_conversion_rate': state.starch_conversion_rate,
-            'duration_hours': state.duration_hours,
-            'temperature': state.temperature,
-        }
+        'output': state.as_dict(),
+        'trajectory': trajectory,
+        'guidance': guidance,
     })
 
 
