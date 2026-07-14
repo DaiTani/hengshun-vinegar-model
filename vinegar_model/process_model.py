@@ -885,7 +885,10 @@ class VinegarProductionModel:
             ProductionState: 完整生产流程状态
         """
         sac_state = self.saccharification.get_state_at(
-            saccharification_hours, saccharification_temp, raw_material
+            hours=saccharification_hours,
+            temperature=saccharification_temp,
+            pH=4.25,
+            raw_material=raw_material
         )
 
         alc_state = self.alcohol.get_state_at(
