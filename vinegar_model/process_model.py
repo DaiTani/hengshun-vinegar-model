@@ -288,57 +288,22 @@ class FullProcessOutput:
 
 @dataclass
 class SaccharificationState:
-    """
-    原料糖化阶段状态
-
-    糖化阶段是镇江香醋五工序中的第一道工序，
-    淀粉在α-淀粉酶和糖化酶作用下转化为葡萄糖。
-
-    工艺参数 (薛茂云, 2018):
-    - 温度: 60°C (最佳)
-    - 时间: 24-48小时 (实际生产中可缩短至60分钟强化糖化)
-    - pH值: 4.0-4.5 (最适合酶活性)
-    - 糖化率: 75-88% (受原料种类、蒸煮程度、酶制剂添加量影响)
-    """
+    """原料糖化阶段状态"""
     duration_hours: float        # 糖化时长(小时)
     temperature: float           # 糖化温度(°C)
-    pH: float                    # pH值
     reducing_sugar: float        # 还原糖含量 (g/100mL)
     starch_conversion_rate: float  # 淀粉转化率 (0-1)
     raw_material: str            # 原料类型
-    alpha_amylase_activity: float  # α-淀粉酶活性 (U/g)
-    glucoamylase_activity: float  # 糖化酶活性 (U/g)
-    starch_remaining: float      # 残余淀粉 (%)
-    glucose_concentration: float  # 葡萄糖浓度 (g/L)
 
     def as_dict(self) -> Dict:
         return {
             "stage": "原料糖化",
-            "duration_hours": round(self.duration_hours, 1),
-            "temperature": round(self.temperature, 1),
-            "pH": round(self.pH, 2),
-            "reducing_sugar": round(self.reducing_sugar, 2),
-            "starch_conversion_rate": round(self.starch_conversion_rate, 3),
+            "duration_hours": self.duration_hours,
+            "temperature": self.temperature,
+            "reducing_sugar": self.reducing_sugar,
+            "starch_conversion_rate": self.starch_conversion_rate,
             "raw_material": self.raw_material,
-            "alpha_amylase_activity": round(self.alpha_amylase_activity, 1),
-            "glucoamylase_activity": round(self.glucoamylase_activity, 1),
-            "starch_remaining": round(self.starch_remaining, 1),
-            "glucose_concentration": round(self.glucose_concentration, 1),
         }
-
-    def get_stage_name(self) -> str:
-        """根据转化率返回当前阶段名称"""
-        conv = self.starch_conversion_rate * 100
-        if conv >= 95:
-            return "糖化完成"
-        elif conv >= 72:
-            return "还原糖释放阶段"
-        elif conv >= 35:
-            return "酶解糖化阶段"
-        elif conv >= 10:
-            return "降温拌曲阶段"
-        else:
-            return "蒸煮糊化阶段"
 
 
 @dataclass
@@ -445,244 +410,61 @@ class SaccharificationModel:
     原料糖化模型
 
     模拟淀粉在曲霉作用下糖化为还原糖的过程。
-    采用一级反应动力学结合Arrhenius温度修正:
-
+    采用一级反应动力学:
         d[糖]/dt = k * [淀粉]
-        k = k₀ * exp(-Ea/R * (1/T - 1/T_ref))
+    其中k遵循Arrhenius方程。
 
-    糖化阶段工艺参数 (薛茂云, 2018《镇江香醋糖化工艺的研究》):
-    - 温度: 60°C (最佳, 58-62°C适宜区间)
-    - 时间: 传统24-48小时; 强化工艺60分钟
-    - pH值: 4.0-4.5 (最适合淀粉酶活性)
-    - 酶制剂: 糖化酶100U/g, α-淀粉酶20U/g
-    - 糖化率: 75-88% (受原料种类、蒸煮程度影响)
+    文献参数:
+    - 薛茂云(2018): 最佳工艺: 蒸煮6s, 60°C糖化60min, 糖化酶100U/g, α-淀粉酶20U/g
+    - 毕静(2026): 最佳条件下还原糖约3.96 g/100g (纤维素酶6U/g + 酸性蛋白酶10U/g)
+    - 巩敏: 糖化液葡萄糖36.39-58.02 g/L (≈3.6-5.8 g/100mL)
+    - 糯米淀粉转化率可达88% (包启安)
 
-    原料差异:
-    - 糯米: 淀粉含量75-80%, 蛋白质7-8%, 糖化效率最高(88%)
-    - 大米: 淀粉含量65%, 易于糖化, 转化率82%
-    - 高粱: 淀粉含量60%, 单宁含量高, 转化率较低(75%)
-    - 小麦: 淀粉含量55%, 蛋白质较高, 转化率78%
-
-    质量平衡:
-    - 淀粉 → 葡萄糖: 1g淀粉 → 1.11g葡萄糖 (水解系数)
-    - 葡萄糖 → 乙醇: 1g葡萄糖 → 0.51g乙醇 (酵母发酵收率)
-
-    验证数据 (巩敏):
-    - 糖化液葡萄糖: 36.39-58.02 g/L (≈3.6-5.8 g/100mL)
-    - 与模型预测吻合良好
-
-    创新点:
-    - 引入pH对酶活性的影响修正
-    - 考虑不同原料的淀粉结构差异
-    - 提供完整的时间-温度-转化率轨迹
+    校准说明:
+        根据巩敏(糖化液3.6-5.8 g/100mL)和毕静(~4 g/100g)数据校准:
+        公式: reducing_sugar = 2.5 + 3.0 * conversion
+        糯米max conversion=0.88 → 2.5 + 3.0*0.88 = 5.14 g/100mL ✓
+        酒精发酵添加continuous_factor=1.5模拟边糖化边发酵:
+        effective_sugar = initial_sugar * 2.5 → 5.14 * 2.5 ≈ 12.85 g/100mL
+        → 酒精发酵6天可产生约8.5%乙醇，符合镇江香醋工艺目标(8-12%)
     """
 
-    # 原料基准转化率 (薛茂云, 2018; 包启安)
-    RAW_MATERIAL_CONVERSION = {
-        "糯米": 0.88,   # 优质糯米，淀粉含量高
-        "大米": 0.82,   # 易于糖化
-        "高粱": 0.75,   # 单宁影响，转化率较低
-        "小麦": 0.78,   # 蛋白质含量高
-        "玉米": 0.80,   # 脂肪含量较高
-    }
-
-    # 酶活性的最佳pH范围
-    OPTIMAL_PH_MIN = 4.0
-    OPTIMAL_PH_MAX = 4.5
-    OPTIMAL_PH = 4.25
-
-    # 温度参数
-    OPTIMAL_TEMP = 60.0   # °C (薛茂云, 2018)
-    TEMP_RANGE_MIN = 45.0
-    TEMP_RANGE_MAX = 70.0
-
     def __init__(self):
-        self.base_k = 0.7    # 基准反应速率 (1/h), 60°C时约0.7 h⁻¹
-        self.Ea = 42000      # 活化能 (J/mol), 淀粉糖化
-        self.R = 8.314       # 气体常数 J/(mol·K)
+        self.base_k = 0.7   # 基准反应速率 (1/h), 60°C时约0.7 h⁻¹
+        self.Ea = 42000     # 活化能 (J/mol), 淀粉糖化
+        self.R = 8.314      # 气体常数
 
     def _arrhenius_k(self, T: float) -> float:
-        """
-        计算给定温度下的反应速率常数
-        使用Arrhenius方程进行温度修正
-        """
-        T_ref = 273.15 + 60.0  # 参考温度 60°C
-        T_curr = T + 273.15
-        return self.base_k * math.exp(self.Ea / self.R * (1 / T_ref - 1 / T_curr))
-
-    def _ph_factor(self, pH: float) -> float:
-        """
-        计算pH对酶活性的影响因子
-        淀粉酶在pH 4.0-4.5范围内活性最高
-        偏离此范围活性下降
-        """
-        if self.OPTIMAL_PH_MIN <= pH <= self.OPTIMAL_PH_MAX:
-            return 1.0
-        dist_from_optimal = min(abs(pH - self.OPTIMAL_PH_MIN), abs(pH - self.OPTIMAL_PH_MAX))
-        return max(0.5, 1.0 - 0.1 * dist_from_optimal)
-
-    def _temperature_factor(self, T: float) -> float:
-        """
-        计算温度对酶活性的影响因子
-        60°C为最佳温度
-        """
-        if self.TEMP_RANGE_MIN <= T <= self.TEMP_RANGE_MAX:
-            optimal_range = 5.0  # ±5°C范围为最佳
-            if abs(T - self.OPTIMAL_TEMP) <= optimal_range:
-                return 1.0
-            deviation = abs(T - self.OPTIMAL_TEMP) - optimal_range
-            return max(0.6, 1.0 - 0.05 * deviation)
-        return 0.7
+        return self.base_k * math.exp(self.Ea / self.R * (1 / 333.15 - 1 / (T + 273.15)))
 
     def get_state_at(self, hours: float, temperature: float = 60.0,
-                     pH: float = 4.25, raw_material: str = "糯米",
-                     alpha_amylase: float = 20.0,
-                     glucoamylase: float = 100.0) -> SaccharificationState:
+                     raw_material: str = "糯米") -> SaccharificationState:
         """
-        获取糖化指定时间后的状态
+        获取糖化hours小时后的状态
 
         参数:
             hours: 糖化时长(小时)
-                - 传统工艺: 24-48小时
-                - 强化工艺: 1-2小时 (高温短时)
-            temperature: 糖化温度(°C), 默认60°C (薛茂云, 2018)
-            pH: 糖化pH值, 默认4.25 (最佳范围4.0-4.5)
-            raw_material: 原料类型 (糯米/大米/高粱/小麦/玉米)
-            alpha_amylase: α-淀粉酶活性 (U/g), 默认20U/g
-            glucoamylase: 糖化酶活性 (U/g), 默认100U/g
-
-        返回:
-            SaccharificationState: 包含还原糖、转化率等指标
+            temperature: 糖化温度(°C), 最佳60°C (薛茂云, 2018)
+            raw_material: 原料类型
 
         文献依据:
             薛茂云等(2018)《镇江香醋糖化工艺的研究》
             - 最佳条件: 60°C糖化60min, 糖化酶100U/g, α-淀粉酶20U/g
-            - 蒸煮6秒后糖化60分钟
             - 最终酒精度可达12%
-
-        模型验证:
-            巩敏数据: 糖化液葡萄糖36.39-58.02 g/L
-            本模型预测: 糯米在最佳条件下约51.4 g/L (5.14 g/100mL) ✓
         """
-        # 获取原料基准转化率
-        max_conversion = self.RAW_MATERIAL_CONVERSION.get(raw_material, 0.85)
+        k = self._arrhenius_k(temperature)
+        max_conversion = {"糯米": 0.88, "大米": 0.82, "高粱": 0.75, "麦芽": 0.85}.get(raw_material, 0.85)
 
-        # 应用温度修正
-        temp_factor = self._temperature_factor(temperature)
-        # 应用pH修正
-        ph_factor = self._ph_factor(pH)
-        # 应用酶活性修正 (相对于基准20U/g α-淀粉酶, 100U/g糖化酶)
-        enzyme_factor = min(1.0, (alpha_amylase / 20.0 + glucoamylase / 100.0) / 2)
-
-        # 综合反应速率
-        k_effective = self._arrhenius_k(temperature) * temp_factor * ph_factor * enzyme_factor
-
-        # 一级反应动力学: conversion = max * (1 - exp(-k*t))
-        conversion = max_conversion * (1 - math.exp(-k_effective * hours))
-
-        # 还原糖计算 (基于巩敏数据校准)
-        # 基准: 2.5 g/100mL (未转化时的背景值) + 3.0 * conversion
+        conversion = max_conversion * (1 - math.exp(-k * hours))
         reducing_sugar = 2.5 + 3.0 * conversion
-
-        # 葡萄糖浓度 (g/L)
-        glucose_concentration = reducing_sugar * 10  # 换算 g/100mL → g/L
-
-        # 残余淀粉
-        starch_remaining = (1 - conversion) * 100
 
         return SaccharificationState(
             duration_hours=hours,
             temperature=temperature,
-            pH=pH,
             reducing_sugar=round(reducing_sugar, 2),
             starch_conversion_rate=round(conversion, 3),
             raw_material=raw_material,
-            alpha_amylase_activity=alpha_amylase,
-            glucoamylase_activity=glucoamylase,
-            starch_remaining=round(starch_remaining, 1),
-            glucose_concentration=round(glucose_concentration, 1),
         )
-
-    def simulate_trajectory(self, max_hours: float = 6.0,
-                           temperature: float = 60.0,
-                           pH: float = 4.25,
-                           raw_material: str = "糯米",
-                           n_points: int = 100) -> Dict[str, List]:
-        """
-        模拟糖化过程的时间轨迹
-
-        参数:
-            max_hours: 最大糖化时间(小时)
-            temperature: 糖化温度(°C)
-            pH: 糖化pH值
-            raw_material: 原料类型
-            n_points: 轨迹点数量
-
-        返回:
-            Dict: 包含time, reducing_sugar, conversion_rate等轨迹数据
-        """
-        time_points = [i * max_hours / (n_points - 1) for i in range(n_points)]
-
-        trajectory = {
-            "time": [round(t, 2) for t in time_points],
-            "reducing_sugar": [],
-            "conversion_rate": [],
-            "temperature": [],
-        }
-
-        for t in time_points:
-            state = self.get_state_at(t, temperature, pH, raw_material)
-            trajectory["reducing_sugar"].append(state.reducing_sugar)
-            trajectory["conversion_rate"].append(state.starch_conversion_rate * 100)
-            trajectory["temperature"].append(state.temperature)
-
-        return trajectory
-
-    def get_guidance(self, hours: float, temperature: float = 60.0,
-                    pH: float = 4.25, raw_material: str = "糯米") -> Dict:
-        """
-        获取糖化工艺建议
-
-        返回:
-            Dict: 包含level和recommendations列表
-        """
-        state = self.get_state_at(hours, temperature, pH, raw_material)
-        recommendations = []
-
-        # 温度建议
-        if abs(temperature - 60) > 5:
-            recommendations.append(f"温度{temperature}°C偏离最佳值60°C，建议调整")
-        else:
-            recommendations.append(f"温度{temperature}°C在适宜范围内")
-
-        # pH建议
-        if pH < 4.0 or pH > 4.5:
-            recommendations.append(f"pH {pH}偏离最佳范围4.0-4.5，建议调整")
-        else:
-            recommendations.append(f"pH {pH}在最佳范围内")
-
-        # 时间建议
-        if hours < 0.8:
-            recommendations.append("糖化时间较短，建议延长至1小时以上")
-        elif hours > 2.0:
-            recommendations.append("糖化时间较长，可考虑优化工艺")
-
-        # 转化率评估
-        conv_pct = state.starch_conversion_rate * 100
-        if conv_pct >= 85:
-            level = "good"
-            recommendations.append(f"转化率{conv_pct:.1f}%优秀")
-        elif conv_pct >= 70:
-            level = "medium"
-            recommendations.append(f"转化率{conv_pct:.1f}%良好")
-        else:
-            level = "poor"
-            recommendations.append(f"转化率{conv_pct:.1f}%偏低，建议优化参数")
-
-        return {
-            "level": level,
-            "recommendations": recommendations,
-        }
 
 
 class AlcoholFermentationModel:
@@ -885,10 +667,7 @@ class VinegarProductionModel:
             ProductionState: 完整生产流程状态
         """
         sac_state = self.saccharification.get_state_at(
-            hours=saccharification_hours,
-            temperature=saccharification_temp,
-            pH=4.25,
-            raw_material=raw_material
+            saccharification_hours, saccharification_temp, raw_material
         )
 
         alc_state = self.alcohol.get_state_at(

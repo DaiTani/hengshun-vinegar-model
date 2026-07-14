@@ -378,40 +378,58 @@ def api_material():
 
 @app.route('/api/saccharification', methods=['GET'])
 def api_saccharification():
-    """
-    原料糖化工序模拟 API
-
-    基于一级反应动力学 + Arrhenius温度修正
-
-    参数:
-        hours: 糖化时间 (小时), 默认1.0
-        temperature: 糖化温度 (°C), 默认60
-        pH: pH值, 默认4.25
-        raw_material: 原料类型, 默认糯米
-
-    返回:
-        JSON: 包含输入参数、输出状态、轨迹数据、工艺建议
-    """
+    """原料糖化工序模拟"""
     model = VinegarProductionModel()
     hours = float(request.args.get('hours', 1.0))
     temp = float(request.args.get('temperature', 60.0))
-    pH = float(request.args.get('pH', 4.25))
     raw_material = request.args.get('raw_material', '糯米')
 
-    state = model.saccharification.get_state_at(hours, temp, pH, raw_material)
-    trajectory = model.saccharification.simulate_trajectory(max_hours=6.0, temperature=temp, pH=pH, raw_material=raw_material)
-    guidance = model.saccharification.get_guidance(hours, temp, pH, raw_material)
+    state = model.saccharification.get_state_at(hours, temp, raw_material)
+    trajectory_hours = [i / 10 for i in range(61)]
+    trajectory_states = [
+        model.saccharification.get_state_at(point, temp, raw_material)
+        for point in trajectory_hours
+    ]
+
+    recommendations = []
+    if temp < 55:
+        level = 'warning'
+        recommendations.append('糖化温度偏低，建议升温至58-62°C以提高酶解效率')
+    elif temp > 65:
+        level = 'warning'
+        recommendations.append('糖化温度偏高，建议降温至58-62°C，避免酶活性下降')
+    else:
+        level = 'good'
+        recommendations.append('温度处于适宜区间，维持均匀搅拌与当前保温状态')
+
+    if hours < 0.8:
+        recommendations.append('糖化时间较短，建议继续保温并跟踪还原糖增长')
+    elif state.starch_conversion_rate >= 0.8:
+        recommendations.append('淀粉转化充分，可准备进入酒精发酵阶段')
+    else:
+        recommendations.append('转化率仍在提升，建议继续监测至曲线趋于稳定')
 
     return jsonify({
         'input': {
             'hours': hours,
             'temperature': temp,
-            'pH': pH,
             'raw_material': raw_material,
         },
-        'output': state.as_dict(),
-        'trajectory': trajectory,
-        'guidance': guidance,
+        'output': {
+            'reducing_sugar': state.reducing_sugar,
+            'starch_conversion_rate': state.starch_conversion_rate,
+            'duration_hours': state.duration_hours,
+            'temperature': state.temperature,
+        },
+        'trajectory': {
+            'time': trajectory_hours,
+            'reducing_sugar': [item.reducing_sugar for item in trajectory_states],
+            'conversion_rate': [round(item.starch_conversion_rate * 100, 1) for item in trajectory_states],
+        },
+        'guidance': {
+            'level': level,
+            'recommendations': recommendations,
+        },
     })
 
 
