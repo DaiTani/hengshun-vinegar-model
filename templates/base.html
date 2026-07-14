@@ -23,6 +23,7 @@
             <nav class="nav">
                 <a href="{{ url_for('index') }}" class="nav-link {% if request.path == '/' %}active{% endif %}">首页</a>
                 <a href="{{ url_for('process_view') }}" class="nav-link {% if request.path == '/process' %}active{% endif %}">工艺</a>
+                <a href="{{ url_for('saccharification') }}" class="nav-link {% if request.path == '/saccharification' %}active{% endif %}">糖化</a>
                 <a href="{{ url_for('aging') }}" class="nav-link {% if request.path == '/aging' %}active{% endif %}">陈酿</a>
                 <a href="{{ url_for('aaf') }}" class="nav-link {% if request.path == '/aaf' %}active{% endif %}">AAF</a>
                 <a href="{{ url_for('about') }}" class="nav-link {% if request.path == '/about' %}active{% endif %}">关于</a>

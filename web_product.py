@@ -30,6 +30,11 @@ def process_view():
     return render_template('process.html')
 
 
+@app.route('/saccharification')
+def saccharification():
+    return render_template('saccharification.html')
+
+
 @app.route('/aging')
 def aging():
     return render_template('aging.html')
