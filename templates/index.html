@@ -18,7 +18,7 @@
                 <div class="param-row">
                     <label for="vinegar_age_months">醋龄 (月)</label>
                     <input type="range" id="vinegar_age_months" min="0" max="120" value="60">
-                    <span class="param-value" id="vinegar_age_value">60</span>
+                    <span class="param-value" id="vinegar_age_months_value">60</span>
                 </div>
                 <div class="param-row">
                     <label for="total_acid">总酸 (g/100mL)</label>
@@ -142,6 +142,7 @@ document.querySelectorAll('input[type="range"]').forEach(input => {
         if (valueSpan) {
             valueSpan.textContent = this.value;
         }
+        analyzeFlavor();
     });
 });
 

@@ -2,6 +2,7 @@
 __pycache__/
 *.py[cod]
 *$py.class
+*.pyc
 
 # Distribution / packaging
 *.egg-info/
@@ -27,12 +28,6 @@ htmlcov/
 .DS_Store
 Thumbs.db
 
-# Large data files (keep only summaries)
-pdf-ocr/paper/*.pdf
-pdf-ocr/paper/*.caj
-pdf-ocr/chroma_db/
-pdf-ocr/__pycache__/
-
 # Temporary debug scripts (not for release)
 _check_*.py
 _validate_*.py
@@ -42,3 +37,15 @@ _r2*.log
 _pytest*.log
 _demo.log
 _temp_api.log
+
+# Project specific - ignore large/output files
+version_history/
+*.zip
+网站截图/
+临时文件/
+图片代码/
+技术研究报告_H202601.pdf
+技术研究报告_H202601.md
+技术研究报告_H202601_updated.docx
+LITERATURE_SUMMARY.md
+requirements_web.txt

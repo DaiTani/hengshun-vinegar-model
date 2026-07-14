@@ -1,0 +1,46 @@
+# 项目版本信息
+
+## 当前版本: v1.0.0
+
+### 版本历史
+- v1.0.0 (2026-07-14): 完整项目提交
+  - 核心模型包 vinegar_model/
+  - Web应用 (Streamlit + Flask)
+  - REST API
+  - 技术报告文档
+  - 流程图源码 (Mermaid)
+
+### 文件清单
+```
+醋风味数字化项目/
+├── README.md                 # 项目说明
+├── VERSION.txt               # 版本信息
+├── requirement.txt           # Python依赖
+├── vinegar_model/            # 核心模型
+│   ├── __init__.py
+│   ├── aaf_kinetics.py       # AAF动力学模型
+│   ├── aging_kinetics.py     # 陈酿演化模型
+│   ├── process_model.py       # 五工序模型
+│   ├── flavor_radar.py        # 风味雷达
+│   ├── hybrid_model.py        # 混合模型
+│   ├── craft_effect.py        # 工艺效应
+│   ├── aging_mechanism.py     # 陈酿机理
+│   └── _sensitivity_analysis.py
+├── web/                      # Web应用
+│   ├── web_app.py             # Streamlit应用
+│   ├── web_product.py         # Flask应用
+│   ├── api.py                 # REST API
+│   └── templates/             # HTML模板
+├── tests/                     # 测试用例
+│   └── test_vinegar.py
+└── docs/                      # 文档资料
+    ├── 技术研究报告_H202601_updated.docx
+    ├── report_images/         # 流程图
+    ├── 图片代码/              # Mermaid源码
+    └── article/
+```
+
+### 联系方式
+- 参赛单位: 齐鲁工业大学（山东省科学院）
+- 团队成员: 房继轩、王富康、李汭涵、唐浩天、吴坦政、戴谭宇
+- 网站: http://zjc.yzdrserver0106.top
